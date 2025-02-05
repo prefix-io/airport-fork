@@ -19,6 +19,7 @@ jobs:
       duckdb_version: main
       extension_name: airport
       ci_tools_version: main
+      extra_toolchains: parser_tools
       exclude_archs: "wasm_mvp;wasm_eh;wasm_threads;windows_amd64_rtools"
 
   # duckdb-stable-deploy:
