@@ -953,13 +953,6 @@ namespace duckdb
         bind_data.server_location,
         flight_descriptor, "ReadSchema");
 
-    // Tell the server the schema that we will be using to write data.
-    AIRPORT_ARROW_ASSERT_OK_LOCATION_DESCRIPTOR(
-        exchange_result.writer->Begin(send_schema),
-        bind_data.server_location,
-        flight_descriptor,
-        "airport_dynamic_table_function: send schema");
-
     // Send the input set of parameters to the server.
     std::shared_ptr<arrow::Buffer> parameters_buffer = std::make_shared<arrow::Buffer>(
         reinterpret_cast<const uint8_t *>(bind_data.table_function_parameters->parameters.data()),
@@ -970,6 +963,13 @@ namespace duckdb
         bind_data.server_location,
         flight_descriptor,
         "airport_dynamic_table_function: write metadata with parameters");
+
+    // Tell the server the schema that we will be using to write data.
+    AIRPORT_ARROW_ASSERT_OK_LOCATION_DESCRIPTOR(
+        exchange_result.writer->Begin(send_schema),
+        bind_data.server_location,
+        flight_descriptor,
+        "airport_dynamic_table_function: send schema");
 
     auto scan_data = make_uniq<AirportTakeFlightScanData>(
         bind_data.server_location,

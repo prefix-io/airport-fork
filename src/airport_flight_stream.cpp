@@ -13,6 +13,7 @@
 #include <iostream>
 #include <memory>
 #include <arrow/buffer.h>
+#include <arrow/util/align_util.h>
 #include "yyjson.hpp"
 
 /// File copied from
@@ -148,7 +149,17 @@ namespace duckdb
       return arrow::Status::OK();
     }
 
-    *batch = chunk.data;
+    // DuckDB expects the RecordBatch to be aligned at a pointer offset
+    // ensure that this happens.
+    AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION_DESCRIPTOR(
+        auto aligned_chunk,
+        arrow::util::EnsureAlignment(chunk.data, 8, arrow::default_memory_pool()),
+        flight_server_location_,
+        flight_info_->descriptor(),
+        "EnsureRecordBatchAlignment");
+
+    *batch = aligned_chunk;
+
     return arrow::Status::OK();
   }
 

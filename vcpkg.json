@@ -18,10 +18,5 @@
         "flight"
       ]
     }
-  ],
-  "vcpkg-configuration": {
-    "overlay-ports": [
-      "./vcpkg-overlay/arrow"
-    ]
-  }
+  ]
 }
