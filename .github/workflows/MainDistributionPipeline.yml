@@ -18,6 +18,7 @@ jobs:
     with:
       duckdb_version: v1.2.0
       extension_name: airport
+      override_ci_tools_repository: rustyconover/extension-ci-tools
       ci_tools_version: fix_move_docker_root
       extra_toolchains: parser_tools
       exclude_archs: "wasm_mvp;wasm_eh;wasm_threads;windows_amd64_rtools"
