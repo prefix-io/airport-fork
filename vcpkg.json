@@ -1,8 +1,7 @@
 {
   "dependencies": [
     {
-      "name": "msgpack",
-      "default-features": true
+      "name": "msgpack"
     },
     {
       "name": "curl",
