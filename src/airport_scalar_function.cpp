@@ -13,6 +13,7 @@
 #include "airport_flight_stream.hpp"
 #include "storage/airport_exchange.hpp"
 #include "duckdb/planner/expression/bound_function_expression.hpp"
+#include <numeric>
 
 namespace duckdb
 {

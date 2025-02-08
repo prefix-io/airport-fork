@@ -1,5 +1,7 @@
 #pragma once
 
+#include <limits>
+#include <cstdint>
 #include "duckdb/common/arrow/arrow_wrapper.hpp"
 #include "duckdb/function/table/arrow.hpp"
 #include "arrow/ipc/reader.h"

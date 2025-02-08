@@ -1,7 +1,9 @@
 #pragma once
 
 #include "duckdb.hpp"
-
+#include <limits>
+#include <cstdint>
+#include <numeric>
 
 namespace duckdb
 {
