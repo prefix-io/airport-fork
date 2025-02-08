@@ -20,7 +20,6 @@ jobs:
       extension_name: airport
       override_ci_tools_repository: rustyconover/extension-ci-tools
       ci_tools_version: fix_enable_vcpkg_github_cache
-      vcpkg_commit: 74ec888e385d189b42d6b398d0bbaa6f1b1d3b0e
       extra_toolchains: parser_tools
       exclude_archs: "wasm_mvp;wasm_eh;wasm_threads;windows_amd64_rtools"
 
