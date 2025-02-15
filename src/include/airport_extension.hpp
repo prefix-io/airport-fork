@@ -1,9 +1,7 @@
 #pragma once
 
 #include "duckdb.hpp"
-#include <limits>
-#include <cstdint>
-#include <numeric>
+#include "arrow/util/windows_compatibility.h"
 
 namespace duckdb
 {
