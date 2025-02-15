@@ -20,7 +20,7 @@ jobs:
       extension_name: airport
       ci_tools_version: 92788ddc80fdce725a93d0e0c97b8cf68a79673a
       extra_toolchains: parser_tools
-      exclude_archs: "wasm_mvp;wasm_eh;wasm_threads;windows_amd64_rtools"
+      exclude_archs: "wasm_mvp;wasm_eh;wasm_threads;"
 
   # duckdb-stable-deploy:
   #   name: Deploy extension binaries
