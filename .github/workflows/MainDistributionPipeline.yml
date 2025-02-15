@@ -16,7 +16,7 @@ jobs:
     name: Build extension binaries
     uses: rustyconover/extension-ci-tools/.github/workflows/_extension_distribution.yml@92788ddc80fdce725a93d0e0c97b8cf68a79673a
     with:
-      duckdb_version: v1.2-histrionicus
+      duckdb_version: v1.2.0
       extension_name: airport
       ci_tools_version: 92788ddc80fdce725a93d0e0c97b8cf68a79673a
       extra_toolchains: parser_tools
