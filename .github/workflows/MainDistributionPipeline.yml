@@ -16,9 +16,10 @@ jobs:
     name: Build extension binaries
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
     with:
-      duckdb_version: v1.2.0
+      duckdb_version: v1.2-histrionicus
       extension_name: airport
-      ci_tools_version: main
+      override_ci_tools_repository: rustyconover/extension-ci-tools
+      ci_tools_version: fix_windows_cache_vcpkg
       extra_toolchains: parser_tools
       exclude_archs: "wasm_mvp;wasm_eh;wasm_threads;windows_amd64_rtools"
 
