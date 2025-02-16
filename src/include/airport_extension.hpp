@@ -1,6 +1,9 @@
 #pragma once
 
 #include "duckdb.hpp"
+#include <limits>
+#include <cstdint>
+#include <numeric>
 
 #ifdef _WIN32
 
