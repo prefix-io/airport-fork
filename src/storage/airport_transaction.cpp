@@ -1,3 +1,4 @@
+#include "airport_extension.hpp"
 #include "storage/airport_transaction.hpp"
 #include "storage/airport_catalog.hpp"
 #include "duckdb/parser/parsed_data/create_view_info.hpp"

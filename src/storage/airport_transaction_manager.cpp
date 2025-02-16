@@ -1,3 +1,4 @@
+#include "airport_extension.hpp"
 #include "storage/airport_transaction_manager.hpp"
 #include "duckdb/main/attached_database.hpp"
 
