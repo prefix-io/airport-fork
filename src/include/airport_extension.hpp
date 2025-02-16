@@ -22,8 +22,6 @@
 #define _WIN32_WINNT 0x601
 #endif
 
-#include <winsock2.h>
-
 #ifdef max
 #undef max
 #endif
