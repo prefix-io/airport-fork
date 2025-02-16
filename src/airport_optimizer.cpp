@@ -1,4 +1,4 @@
-#include "duckdb.hpp"
+#include "airport_extension.hpp"
 #include "storage/airport_catalog.hpp"
 #include "airport_optimizer.hpp"
 #include "duckdb/planner/operator/logical_delete.hpp"
