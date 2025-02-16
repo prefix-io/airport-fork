@@ -1,3 +1,5 @@
+#include "airport_extension.hpp"
+
 #include <openssl/evp.h>
 #include <openssl/sha.h>
 #include <iomanip>
@@ -19,7 +21,6 @@
 #include "airport_macros.hpp"
 #include "airport_secrets.hpp"
 #include "airport_headers.hpp"
-#include "airport_extension.hpp"
 #include <curl/curl.h>
 #include <msgpack.hpp>
 #include <arrow/ipc/api.h>

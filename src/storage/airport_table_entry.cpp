@@ -1,3 +1,4 @@
+#include "airport_extension.hpp"
 #include "storage/airport_catalog.hpp"
 #include "storage/airport_schema_entry.hpp"
 #include "storage/airport_table_entry.hpp"
