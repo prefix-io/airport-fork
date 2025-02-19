@@ -27,7 +27,7 @@
 #include <arrow/util/key_value_metadata.h>
 #include <numeric>
 #include "airport_flight_stream.hpp"
-#include "airport_headers.hpp"
+#include "airport_request_headers.hpp"
 #include "airport_macros.hpp"
 #include "airport_macros.hpp"
 #include "airport_scalar_function.hpp"
@@ -360,13 +360,8 @@ namespace duckdb
     arrow::flight::FlightCallOptions call_options;
 
     airport_add_standard_headers(call_options, airport_catalog.credentials.location);
+    airport_add_authorization_header(call_options, airport_catalog.credentials.auth_token);
 
-    if (!airport_catalog.credentials.auth_token.empty())
-    {
-      std::stringstream ss;
-      ss << "Bearer " << airport_catalog.credentials.auth_token;
-      call_options.headers.emplace_back("authorization", ss.str());
-    }
     call_options.headers.emplace_back("airport-action-name", "create_table");
 
     std::unique_ptr<flight::FlightClient> &flight_client = AirportAPI::FlightClientForLocation(airport_catalog.credentials.location);
@@ -906,13 +901,7 @@ namespace duckdb
 
     arrow::flight::FlightCallOptions call_options;
     airport_add_standard_headers(call_options, bind_data.server_location);
-
-    if (!auth_token.empty())
-    {
-      std::stringstream ss;
-      ss << "Bearer " << auth_token;
-      call_options.headers.emplace_back("authorization", ss.str());
-    }
+    airport_add_authorization_header(call_options, auth_token);
 
     call_options.headers.emplace_back("airport-trace-id", trace_uuid);
 

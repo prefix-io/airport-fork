@@ -6,7 +6,7 @@
 #include "duckdb/parser/parsed_data/create_table_info.hpp"
 #include "duckdb/parser/parser.hpp"
 
-#include "airport_headers.hpp"
+#include "airport_request_headers.hpp"
 #include "airport_macros.hpp"
 #include "airport_secrets.hpp"
 #include "arrow/util/key_value_metadata.h"

@@ -18,8 +18,8 @@
 
 #include "airport_macros.hpp"
 #include "storage/airport_update_parameterized.hpp"
-#include "airport_headers.hpp"
-#include "airport_exception.hpp"
+#include "airport_request_headers.hpp"
+#include "airport_flight_exception.hpp"
 #include "airport_secrets.hpp"
 #include "duckdb/execution/expression_executor.hpp"
 

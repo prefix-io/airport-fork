@@ -1,6 +1,6 @@
 #include "airport_flight_stream.hpp"
 #include "airport_macros.hpp"
-#include "airport_exception.hpp"
+#include "airport_flight_exception.hpp"
 
 #include "duckdb.hpp"
 #include "duckdb/common/exception.hpp"

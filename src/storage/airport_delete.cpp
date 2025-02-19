@@ -11,8 +11,8 @@
 #include "duckdb/function/table/arrow/arrow_duck_schema.hpp"
 #include "duckdb/function/table/arrow.hpp"
 #include "airport_macros.hpp"
-#include "airport_headers.hpp"
-#include "airport_exception.hpp"
+#include "airport_request_headers.hpp"
+#include "airport_flight_exception.hpp"
 #include "airport_secrets.hpp"
 #include "storage/airport_delete_parameterized.hpp"
 

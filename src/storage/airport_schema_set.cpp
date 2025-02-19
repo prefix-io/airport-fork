@@ -8,7 +8,7 @@
 #include "duckdb/catalog/catalog.hpp"
 #include "duckdb/common/file_system.hpp"
 
-#include "airport_headers.hpp"
+#include "airport_request_headers.hpp"
 #include "airport_macros.hpp"
 #include <arrow/buffer.h>
 
@@ -101,11 +101,11 @@ namespace duckdb
 
       if (schema.schema_name.empty())
       {
-        throw InvalidInputException("Schema name is empty when loading entries");
+        throw InvalidInputException("Airport: catalog '%s' contained a schema with an empty name");
       }
       if (!(seen_schema_names.find(schema.schema_name) == seen_schema_names.end()))
       {
-        throw InvalidInputException("Schema name %s is not unique when loading entries", schema.schema_name.c_str());
+        throw InvalidInputException("Airport: catalog '%s' contained two or more schemas named %s", catalog_name, schema.schema_name.c_str());
       }
 
       seen_schema_names.insert(schema.schema_name);
@@ -132,13 +132,8 @@ namespace duckdb
     arrow::flight::FlightCallOptions call_options;
 
     airport_add_standard_headers(call_options, airport_catalog.credentials.location);
+    airport_add_authorization_header(call_options, airport_catalog.credentials.auth_token);
 
-    if (!airport_catalog.credentials.auth_token.empty())
-    {
-      std::stringstream ss;
-      ss << "Bearer " << airport_catalog.credentials.auth_token;
-      call_options.headers.emplace_back("authorization", ss.str());
-    }
     call_options.headers.emplace_back("airport-action-name", "create_schema");
 
     std::unique_ptr<arrow::flight::FlightClient> &flight_client = AirportAPI::FlightClientForLocation(airport_catalog.credentials.location);

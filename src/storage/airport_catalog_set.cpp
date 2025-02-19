@@ -2,7 +2,7 @@
 #include "storage/airport_transaction.hpp"
 #include "duckdb/parser/parsed_data/drop_info.hpp"
 #include "storage/airport_schema_entry.hpp"
-#include "airport_headers.hpp"
+#include "airport_request_headers.hpp"
 #include "storage/airport_catalog.hpp"
 #include "airport_macros.hpp"
 #include <arrow/buffer.h>
@@ -58,13 +58,7 @@ namespace duckdb
     arrow::flight::FlightCallOptions call_options;
 
     airport_add_standard_headers(call_options, airport_catalog.credentials.location);
-
-    if (!airport_catalog.credentials.auth_token.empty())
-    {
-      std::stringstream ss;
-      ss << "Bearer " << airport_catalog.credentials.auth_token;
-      call_options.headers.emplace_back("authorization", ss.str());
-    }
+    airport_add_authorization_header(call_options, airport_catalog.credentials.auth_token);
 
     std::unique_ptr<arrow::flight::FlightClient> &flight_client = AirportAPI::FlightClientForLocation(airport_catalog.credentials.location);
 

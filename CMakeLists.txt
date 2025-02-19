@@ -15,7 +15,7 @@ project(${TARGET_NAME})
 include_directories(src/include)
 
 set(EXTENSION_SOURCES
-  src/airport_exception.cpp
+  src/airport_flight_exception.cpp
   src/airport_extension.cpp
   src/airport_flight_stream.cpp
   src/airport_json_common.cpp
@@ -34,13 +34,13 @@ set(EXTENSION_SOURCES
   src/storage/airport_transaction_manager.cpp
   src/storage/airport_transaction.cpp
   src/storage/airport_curl_pool.cpp
-  src/airport_headers.cpp
   src/storage/airport_exchange.cpp
   src/storage/airport_delete.cpp
   src/storage/airport_insert.cpp
   src/storage/airport_update.cpp
   src/storage/airport_delete_parameterized.cpp
   src/storage/airport_update_parameterized.cpp
+  src/airport_request_headers.cpp
   src/airport_optimizer.cpp
   src/airport_constraints.cpp
   src/airport_scalar_function.cpp

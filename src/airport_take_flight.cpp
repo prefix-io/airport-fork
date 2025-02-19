@@ -16,8 +16,8 @@
 #include "airport_flight_stream.hpp"
 #include "airport_macros.hpp"
 #include "airport_secrets.hpp"
-#include "airport_headers.hpp"
-#include "airport_exception.hpp"
+#include "airport_request_headers.hpp"
+#include "airport_flight_exception.hpp"
 #include "duckdb/common/arrow/schema_metadata.hpp"
 #include "duckdb/function/table/arrow/arrow_duck_schema.hpp"
 #include "msgpack.hpp"
@@ -166,12 +166,7 @@ namespace duckdb
 
     arrow::flight::FlightCallOptions call_options;
     airport_add_standard_headers(call_options, take_flight_params.server_location);
-    if (!take_flight_params.auth_token.empty())
-    {
-      std::stringstream ss;
-      ss << "Bearer " << take_flight_params.auth_token;
-      call_options.headers.emplace_back("authorization", ss.str());
-    }
+    airport_add_authorization_header(call_options, take_flight_params.auth_token);
 
     call_options.headers.emplace_back("airport-trace-id", trace_uuid);
 
@@ -446,6 +441,7 @@ namespace duckdb
     {
       return make_uniq<NodeStatistics>(flight_estimated_records);
     }
+    // If we don't have an estimated number of records, just use an assumption.
     return make_uniq<NodeStatistics>(100000);
   }
 
@@ -583,7 +579,7 @@ namespace duckdb
     arrow::flight::FlightCallOptions call_options;
     airport_add_standard_headers(call_options, bind_data.server_location);
 
-    // Since the ticket is an opaque reference to the stream, its useful to the middle ware
+    // Since the ticket is an opaque set of bytes, its useful to the middle ware
     // sometimes to know what the path of the flight is.
     auto descriptor = bind_data.scan_data->flight_descriptor();
     if (descriptor.type == arrow::flight::FlightDescriptor::PATH)
@@ -593,12 +589,7 @@ namespace duckdb
       call_options.headers.emplace_back("airport-flight-path", joined_path_parts);
     }
 
-    if (!bind_data.auth_token.empty())
-    {
-      std::stringstream ss;
-      ss << "Bearer " << bind_data.auth_token;
-      call_options.headers.emplace_back("authorization", ss.str());
-    }
+    airport_add_authorization_header(call_options, bind_data.auth_token);
 
     call_options.headers.emplace_back("airport-trace-id", bind_data.trace_id);
 
@@ -619,6 +610,13 @@ namespace duckdb
     }
 
     // Rather than using the headers, check to see if the ticket starts with <TICKET_ALLOWS_METADATA>
+
+    // FIXME: right now we're just requesting data from the first endpoint
+    // of the flight, in the future we should scan data from all endpoints.
+    //
+    // we should also pay attention the url scheme of the endpoints because
+    // if the server just returns a set of Parquet URLs or HTTP urls we should
+    // request those instead.
 
     auto server_ticket = bind_data.scan_data->flight_info_->endpoints()[0].ticket;
     auto server_ticket_contents = server_ticket.ticket;
@@ -666,23 +664,6 @@ namespace duckdb
 
     // Since we're single threaded, we can only really use a single thread at a time.
     result->max_threads = 1;
-    // if (input.CanRemoveFilterColumns())
-    // {
-    //   result->projection_ids = input.projection_ids;
-    //   for (const auto &col_idx : input.column_ids)
-    //   {
-    //     if (col_idx == COLUMN_IDENTIFIER_ROW_ID)
-    //     {
-    //       result->scanned_types.emplace_back(LogicalTypeId::BIGINT);
-    //     }
-    //     else
-    //     {
-    //       result->scanned_types.push_back(bind_data.all_types[col_idx]);
-    //     }
-    //   }
-    // }
-
-    // So right now the scanned_types is null
 
     return std::move(result);
   }
@@ -692,6 +673,7 @@ namespace duckdb
     auto &bind_data = data->Cast<AirportTakeFlightBindData>();
     lock_guard<mutex> guard(bind_data.lock);
 
+    // FIXME: this will have to be adapted for multiple endpoints
     return bind_data.scan_data->progress_ * 100.0;
   }
 
@@ -713,9 +695,6 @@ namespace duckdb
     take_flight_function_with_descriptor.named_parameters["ticket"] = LogicalType::BLOB;
     take_flight_function_with_descriptor.named_parameters["headers"] = LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR);
     take_flight_function_with_descriptor.pushdown_complex_filter = take_flight_complex_filter_pushdown;
-
-    // Add support for optional named paraemters that would be appended to the descriptor
-    // of the flight, ideally parameters would be JSON encoded.
 
     take_flight_function_with_descriptor.cardinality = take_flight_cardinality;
     //    take_flight_function_with_descriptor.get_batch_index = nullptr;

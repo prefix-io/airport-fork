@@ -11,8 +11,8 @@
 #include "duckdb/function/table/arrow/arrow_duck_schema.hpp"
 #include "duckdb/function/table/arrow.hpp"
 #include "airport_macros.hpp"
-#include "airport_headers.hpp"
-#include "airport_exception.hpp"
+#include "airport_request_headers.hpp"
+#include "airport_flight_exception.hpp"
 #include "airport_secrets.hpp"
 
 #include "arrow/array/array_dict.h"
@@ -101,13 +101,7 @@ namespace duckdb
 
     arrow::flight::FlightCallOptions call_options;
     airport_add_standard_headers(call_options, airport_table.table_data->location);
-
-    if (!auth_token.empty())
-    {
-      std::stringstream ss;
-      ss << "Bearer " << auth_token;
-      call_options.headers.emplace_back("authorization", ss.str());
-    }
+    airport_add_authorization_header(call_options, auth_token);
 
     call_options.headers.emplace_back("airport-trace-id", trace_uuid);
 

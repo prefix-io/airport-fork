@@ -11,7 +11,7 @@
 #include "duckdb/parser/parsed_data/alter_table_info.hpp"
 #include "duckdb/parser/parsed_expression_iterator.hpp"
 #include "storage/airport_curl_pool.hpp"
-#include "airport_headers.hpp"
+#include "airport_request_headers.hpp"
 #include "storage/airport_catalog.hpp"
 #include "airport_macros.hpp"
 #include <arrow/buffer.h>

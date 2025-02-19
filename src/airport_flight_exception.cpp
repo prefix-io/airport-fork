@@ -1,5 +1,5 @@
 #include "duckdb.hpp"
-#include "airport_exception.hpp"
+#include "airport_flight_exception.hpp"
 
 #include "airport_extension.hpp"
 #include "duckdb.hpp"

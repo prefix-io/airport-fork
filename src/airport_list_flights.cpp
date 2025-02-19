@@ -12,7 +12,7 @@
 #include "airport_json_serializer.hpp"
 #include "airport_macros.hpp"
 #include "airport_secrets.hpp"
-#include "airport_headers.hpp"
+#include "airport_request_headers.hpp"
 
 namespace flight = arrow::flight;
 
@@ -148,19 +148,16 @@ namespace duckdb
       airport_add_standard_headers(call_options, bind_data.server_location);
       call_options.headers.emplace_back("airport-duckdb-json-filters", bind_data.json_filters);
 
-      if (!bind_data.auth_token.empty())
-      {
-        std::stringstream ss;
-        ss << "Bearer " << bind_data.auth_token;
-        call_options.headers.emplace_back("authorization", ss.str());
-      }
+      airport_add_authorization_header(call_options, bind_data.auth_token);
       // printf("Calling with filters: %s\n", bind_data.json_filters.c_str());
 
       AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(global_state.listing, global_state.flight_client_->ListFlights(call_options, {bind_data.criteria}), bind_data.server_location, "");
     }
 
-    std::unique_ptr<flight::FlightInfo> flight_info;
-    AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(flight_info, global_state.listing->Next(), bind_data.server_location, "");
+    AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(auto flight_info,
+                                            global_state.listing->Next(),
+                                            bind_data.server_location,
+                                            "");
 
     if (flight_info == nullptr)
     {
@@ -223,7 +220,7 @@ namespace duckdb
       }
       break;
       default:
-        throw InvalidInputException("Unknown Arrow Flight descriptor type encountered.");
+        throw InvalidInputException("Unknown Arrow Flight descriptor type encountered while listing flights");
       }
 
       // Now lets make a fake endpoint struct.

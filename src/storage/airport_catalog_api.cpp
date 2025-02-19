@@ -20,7 +20,7 @@
 
 #include "airport_macros.hpp"
 #include "airport_secrets.hpp"
-#include "airport_headers.hpp"
+#include "airport_request_headers.hpp"
 #include <curl/curl.h>
 #include <msgpack.hpp>
 #include <arrow/ipc/api.h>
@@ -183,7 +183,7 @@ namespace duckdb
       if (res != CURLcode::CURLE_OK)
       {
         string error = curl_easy_strerror(res);
-        throw IOException("Curl Request to " + url + " failed with error: " + error);
+        throw IOException("Airport: Curl Request to " + url + " failed with error: " + error);
       }
       // Get the HTTP response code
       curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
@@ -200,11 +200,11 @@ namespace duckdb
 
       if (encountered_sha256 != expected_sha256)
       {
-        throw IOException("SHA256 mismatch for URL: " + url);
+        throw IOException("Airport: SHA256 mismatch for URL: " + url);
       }
       return std::make_pair(http_code, readBuffer);
     }
-    throw InternalException("Failed to initialize curl");
+    throw InternalException("Airport: Failed to initialize curl");
   }
 
   static std::pair<const string, const string> GetCachePath(FileSystem &fs, const string &input, const string &baseDir)
@@ -625,12 +625,7 @@ namespace duckdb
       call_options.headers.emplace_back("airport-list-flights-filter-catalog", catalog);
       call_options.headers.emplace_back("airport-list-flights-filter-schema", schema);
 
-      if (!credentials.auth_token.empty())
-      {
-        std::stringstream ss;
-        ss << "Bearer " << credentials.auth_token;
-        call_options.headers.emplace_back("authorization", ss.str());
-      }
+      airport_add_authorization_header(call_options, credentials.auth_token);
 
       std::unique_ptr<flight::FlightClient> &flight_client = FlightClientForLocation(credentials.location);
 
@@ -659,6 +654,8 @@ namespace duckdb
     }
   }
 
+  // When requesting a schema pass a JSON document that contains options for the
+  // the schema to be retrieved.
   static std::string create_schema_request_document(const string &catalog)
   {
     yyjson_mut_doc *doc = yyjson_mut_doc_new(nullptr);
@@ -677,74 +674,76 @@ namespace duckdb
     return result;
   }
 
-  struct SerializedContents
+  struct SerializedContentsWithSHA256Hash
   {
+    // The URL where the serialized contents of the schema or catalog can be retrieved.
     std::optional<std::string> url;
+    // The SHA256 of the serialized contents.
     std::optional<std::string> sha256;
+    // The inline serialized contents of either the schema or catalog
     std::optional<std::string> serialized;
+
     MSGPACK_DEFINE_MAP(url, sha256, serialized)
   };
 
   struct SerializedSchema
   {
+    // The name of the schema
     std::string schema;
+    // The description of the schema
     std::string description;
+    // Any tags to apply to the schema.
     std::unordered_map<std::string, std::string> tags;
-    SerializedContents contents;
+    // The contents of the schema itself.
+    SerializedContentsWithSHA256Hash contents;
 
     MSGPACK_DEFINE_MAP(schema, description, tags, contents)
   };
 
   struct SerializedCatalogRoot
   {
-    SerializedContents contents;
+    // The contents of the catalog itself.
+    SerializedContentsWithSHA256Hash contents;
+    // A list of schemas.
     std::vector<SerializedSchema> schemas;
 
     MSGPACK_DEFINE_MAP(contents, schemas)
   };
 
-  // This is not the schemas of the tables.
   unique_ptr<AirportSchemaCollection>
   AirportAPI::GetSchemas(const string &catalog, AirportCredentials credentials)
   {
-    unique_ptr<AirportSchemaCollection> result = make_uniq<AirportSchemaCollection>();
-
+    auto result = make_uniq<AirportSchemaCollection>();
     arrow::flight::FlightCallOptions call_options;
-
     airport_add_standard_headers(call_options, credentials.location);
-    //    call_options.headers.emplace_back("airport-list-flights-no-schemas", "1");
-    //    call_options.headers.emplace_back("airport-list-flights-listing-schemas", "1");
-    //    call_options.headers.emplace_back("airport-list-flights-filter-catalog", catalog);
+    airport_add_authorization_header(call_options, credentials.auth_token);
 
-    if (!credentials.auth_token.empty())
-    {
-      std::stringstream ss;
-      ss << "Bearer " << credentials.auth_token;
-      call_options.headers.emplace_back("authorization", ss.str());
-    }
     call_options.headers.emplace_back("airport-action-name", "list_schemas");
 
     std::unique_ptr<flight::FlightClient> &flight_client = FlightClientForLocation(credentials.location);
 
     arrow::flight::Action action{"list_schemas", arrow::Buffer::FromString(create_schema_request_document(catalog))};
+
     std::unique_ptr<arrow::flight::ResultStream> action_results;
     AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(action_results, flight_client->DoAction(call_options, action), credentials.location, "");
-
-    // the first item is the decompressed length
+    // the first item returned is the decompressed length of the schema data.
     AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(auto decompressed_schema_length_buffer, action_results->Next(), credentials.location, "");
 
     if (decompressed_schema_length_buffer == nullptr)
     {
       throw AirportFlightException(credentials.location, "Failed to obtain schema data from Arrow Flight server via DoAction()");
     }
-    // the second is the compressed schema data.
+
+    // the second is the compressed schema data in msgpack format.
     AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(auto compressed_schema_data, action_results->Next(), credentials.location, "");
 
     // Expand the compressed data that was compressed with zstd.
-
     auto decompressed_length = ExtractU32FromString({(const char *)decompressed_schema_length_buffer->body->data(), 4});
 
-    auto codec = arrow::util::Codec::Create(arrow::Compression::ZSTD).ValueOrDie();
+    AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(
+        auto codec,
+        arrow::util::Codec::Create(arrow::Compression::ZSTD),
+        credentials.location, "");
 
     AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(auto decompressed_schema_data, ::arrow::AllocateBuffer(decompressed_length), credentials.location, "");
 
@@ -763,7 +762,7 @@ namespace duckdb
     }
     catch (const std::exception &e)
     {
-      throw InvalidInputException("File to parse MsgPack object describing catalog root %s", e.what());
+      throw InvalidInputException("Failed to parse MsgPack object describing catalog root %s", e.what());
     }
 
     result->schema_collection_contents_url = catalog_root.contents.url ? catalog_root.contents.url.value() : "";

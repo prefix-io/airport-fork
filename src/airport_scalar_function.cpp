@@ -6,7 +6,7 @@
 #include <arrow/c/bridge.h>
 #include "duckdb/common/types/uuid.hpp"
 #include "airport_scalar_function.hpp"
-#include "airport_headers.hpp"
+#include "airport_request_headers.hpp"
 #include "airport_macros.hpp"
 #include "airport_secrets.hpp"
 #include "duckdb/common/arrow/arrow_appender.hpp"
@@ -60,8 +60,6 @@ namespace duckdb
                                                          descriptor_,
                                                          "");
 
-      auto trace_uuid = UUID::ToString(UUID::GenerateRandomUUID());
-
       arrow::flight::FlightCallOptions call_options;
       airport_add_standard_headers(call_options, server_location);
 
@@ -73,14 +71,10 @@ namespace duckdb
       // FIXME: there may need to be a way for the user to supply the auth token
       // but since scalar functions are defined by the server, just assume the user
       // has the token persisted in their secret store.
-      if (!auth_token.empty())
-      {
-        std::stringstream ss;
-        ss << "Bearer " << auth_token;
-        call_options.headers.emplace_back("authorization", ss.str());
-      }
 
-      call_options.headers.emplace_back("airport-trace-id", trace_uuid);
+      airport_add_authorization_header(call_options, auth_token);
+
+      call_options.headers.emplace_back("airport-trace-id", UUID::ToString(UUID::GenerateRandomUUID()));
 
       // Indicate that we are doing a delete.
       call_options.headers.emplace_back("airport-operation", "scalar_function");

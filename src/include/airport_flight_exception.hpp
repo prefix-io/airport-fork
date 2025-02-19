@@ -10,6 +10,10 @@ namespace flight = arrow::flight;
 namespace duckdb
 {
 
+  // A custom exception class for Airport that can include the flight descriptions
+  // and server location, it is important to surface this information on errors because
+  // if multiple servers are being used, its helpful to help the user to diagnose
+  // where the error is being caused.
   class AirportFlightException : public Exception
   {
 
