@@ -11,7 +11,6 @@
 
 #include <arrow/flight/client.h>
 #include <arrow/buffer.h>
-#include "yyjson.hpp"
 
 #include "storage/airport_catalog_api.hpp"
 #include "storage/airport_catalog.hpp"
@@ -27,7 +26,6 @@
 #include <arrow/io/memory.h>
 
 namespace flight = arrow::flight;
-using namespace duckdb_yyjson; // NOLINT
 
 namespace duckdb
 {
@@ -654,25 +652,12 @@ namespace duckdb
     }
   }
 
-  // When requesting a schema pass a JSON document that contains options for the
-  // the schema to be retrieved.
-  static std::string create_schema_request_document(const string &catalog)
+  struct SerializedCatalogSchemaRequest
   {
-    yyjson_mut_doc *doc = yyjson_mut_doc_new(nullptr);
+    std::string catalog_name;
 
-    yyjson_mut_val *root = yyjson_mut_obj(doc);
-    yyjson_mut_doc_set_root(doc, root);
-
-    yyjson_mut_obj_add_str(doc, root, "catalog_name", catalog.c_str());
-
-    char *json_str = yyjson_mut_write(doc, 0, nullptr);
-    std::string result(json_str);
-
-    free(json_str);
-    yyjson_mut_doc_free(doc);
-
-    return result;
-  }
+    MSGPACK_DEFINE_MAP(catalog_name)
+  };
 
   struct SerializedContentsWithSHA256Hash
   {
@@ -722,7 +707,10 @@ namespace duckdb
 
     std::unique_ptr<flight::FlightClient> &flight_client = FlightClientForLocation(credentials.location);
 
-    arrow::flight::Action action{"list_schemas", arrow::Buffer::FromString(create_schema_request_document(catalog))};
+    SerializedCatalogSchemaRequest catalog_request = {catalog};
+    std::stringstream packed_buffer;
+    msgpack::pack(packed_buffer, catalog_request);
+    arrow::flight::Action action{"list_schemas", arrow::Buffer::FromString(packed_buffer.str())};
 
     std::unique_ptr<arrow::flight::ResultStream> action_results;
     AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(action_results, flight_client->DoAction(call_options, action), credentials.location, "");
