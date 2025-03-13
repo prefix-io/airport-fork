@@ -42,6 +42,7 @@ namespace duckdb
         return_chunk(return_chunk)
   {
     auto &table_columns = table.GetColumns();
+    auto &airport_table = table.Cast<AirportTableEntry>();
 
     // Save the names of the column expression that will be sent to
     // the remote server.
@@ -58,7 +59,7 @@ namespace duckdb
     {
       send_types.push_back(expr->return_type);
     }
-    send_types.emplace_back(table.GetRowIdType());
+    send_types.emplace_back(airport_table.GetRowIdType());
 
     D_ASSERT(send_names.size() == send_types.size());
 
@@ -420,6 +421,7 @@ namespace duckdb
   unique_ptr<PhysicalOperator> AirportCatalog::PlanUpdate(ClientContext &context, LogicalUpdate &op,
                                                           unique_ptr<PhysicalOperator> plan)
   {
+    auto &airport_table = op.table.Cast<AirportTableEntry>();
     for (auto &expr : op.expressions)
     {
       if (expr->type == ExpressionType::VALUE_DEFAULT)
@@ -428,7 +430,7 @@ namespace duckdb
       }
     }
 
-    if (op.table.GetRowIdType() == LogicalType::SQLNULL)
+    if (airport_table.GetRowIdType() == LogicalType::SQLNULL)
     {
       if (op.return_chunk)
       {

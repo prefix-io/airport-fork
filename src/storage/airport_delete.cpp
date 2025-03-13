@@ -339,8 +339,9 @@ namespace duckdb
   {
     auto &bound_ref = op.expressions[0]->Cast<BoundReferenceExpression>();
     // AirportCatalog::MaterializeAirportScans(*plan);
+    auto &airport_table = op.table.Cast<AirportTableEntry>();
 
-    if (op.table.GetRowIdType() == LogicalType::SQLNULL)
+    if (airport_table.GetRowIdType() == LogicalType::SQLNULL)
     {
       if (op.return_chunk)
       {

@@ -8,6 +8,7 @@
 #include "duckdb/planner/operator/logical_projection.hpp"
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
 #include "airport_flight_stream.hpp"
+#include "storage/airport_table_entry.hpp"
 
 namespace duckdb
 {
@@ -47,9 +48,10 @@ namespace duckdb
       return;
 
     auto &update = op->Cast<LogicalUpdate>();
+    auto &airport_table = update.table.Cast<AirportTableEntry>();
 
     // If the table produced row_ids we cannot optimize it.
-    if (update.table.GetRowIdType() != LogicalType::SQLNULL)
+    if (airport_table.GetRowIdType() != LogicalType::SQLNULL)
       return;
 
     MarkAirportTakeFlightAsSkipProducing(op);
@@ -61,9 +63,10 @@ namespace duckdb
       return;
 
     auto &del = op->Cast<LogicalDelete>();
+    auto &airport_table = del.table.Cast<AirportTableEntry>();
 
     // If the table produced row_ids we cannot optimize it.
-    if (del.table.GetRowIdType() != LogicalType::SQLNULL)
+    if (airport_table.GetRowIdType() != LogicalType::SQLNULL)
       return;
 
     MarkAirportTakeFlightAsSkipProducing(op);

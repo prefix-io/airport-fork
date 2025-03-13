@@ -38,7 +38,15 @@ namespace duckdb
 
     unique_ptr<AirportAPITable> table_data;
 
-    LogicalType GetRowIdType() const override {
+    virtual_column_map_t GetVirtualColumns() const override
+    {
+      virtual_column_map_t virtual_columns;
+      virtual_columns.insert(make_pair(COLUMN_IDENTIFIER_ROW_ID, TableColumn("rowid", rowid_type)));
+      return virtual_columns;
+    }
+
+    LogicalType GetRowIdType() const
+    {
       return rowid_type;
     }
 
@@ -52,9 +60,8 @@ namespace duckdb
     // void BindUpdateConstraints(Binder &binder, LogicalGet &get, LogicalProjection &proj, LogicalUpdate &update,
     //                            ClientContext &context) override;
   private:
-  	//! A logical type for the rowid of this table.
-	  LogicalType rowid_type = LogicalType(LogicalType::ROW_TYPE);
-
+    //! A logical type for the rowid of this table.
+    LogicalType rowid_type = LogicalType(LogicalType::ROW_TYPE);
   };
 
 } // namespace duckdb
