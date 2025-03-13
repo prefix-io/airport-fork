@@ -21,7 +21,6 @@
 #include "airport_secrets.hpp"
 #include "airport_request_headers.hpp"
 #include <curl/curl.h>
-#include <msgpack.hpp>
 #include <arrow/ipc/api.h>
 #include <arrow/io/memory.h>
 
@@ -34,19 +33,6 @@ namespace duckdb
   static constexpr idx_t FILE_FLAGS_WRITE = idx_t(1 << 1);
   //  static constexpr idx_t FILE_FLAGS_FILE_CREATE = idx_t(1 << 3);
   static constexpr idx_t FILE_FLAGS_FILE_CREATE_NEW = idx_t(1 << 4);
-
-  inline static uint32_t ExtractU32FromString(std::string_view str)
-  {
-    if (str.size() < 4)
-    {
-      throw std::invalid_argument("String is too short to contain four bytes.");
-    }
-
-    uint64_t result = 0;
-    std::copy(str.data(), str.data() + 4, reinterpret_cast<char *>(&result));
-
-    return result;
-  }
 
   static void writeToTempFile(FileSystem &fs, const string &tempFilename, const std::string_view &data)
   {
@@ -238,10 +224,10 @@ namespace duckdb
   {
     auto fs = FileSystem::CreateLocal();
 
-    if (collection.contents_sha256.empty())
+    if (collection.source.sha256.empty())
     {
       // If the collection doesn't have a SHA256 there isn't anything we can do.
-      return;
+      throw IOException("Catalog " + catalog_name + " has no SHA256 value for its contents");
     }
 
     // If there is a large amount of data to be populate its useful to determine
@@ -249,7 +235,7 @@ namespace duckdb
     //
     // So we have a sentinel path that indicates the entire contents of the SHA256
     // has already been written out to the cache.
-    auto sentinel_paths = GetCachePath(*fs, collection.contents_sha256, baseDir);
+    auto sentinel_paths = GetCachePath(*fs, collection.source.sha256, baseDir);
 
     if (fs->FileExists(sentinel_paths.second))
     {
@@ -270,35 +256,39 @@ namespace duckdb
     // is the second item.
     //
     msgpack::object_handle oh;
-    if (!collection.contents_serialized.empty())
+    if (collection.source.serialized.has_value())
     {
-      const string found_sha = SHA256ForString(collection.contents_serialized);
-      if (found_sha != collection.contents_sha256)
+      const string found_sha = SHA256ForString(collection.source.serialized.value());
+      if (found_sha != collection.source.sha256)
       {
-        // Can't use the serrialized data since the SHA256 doesn't match, so
-        // just give up.
-        //
-        // Don't raise an error right now.
-        return;
+        throw IOException("Catalog " + catalog_name + " SHA256 Mismatch expected " + collection.source.sha256 + " found " + found_sha);
       }
-      oh = msgpack::unpack((const char *)collection.contents_serialized.data(), collection.contents_serialized.size(), 0);
+      auto &data = collection.source.serialized.value();
+      oh = msgpack::unpack((const char *)data.data(), data.size(), 0);
     }
-    else
+    else if (collection.source.url.has_value())
     {
       // How do we know if the URLs haven't already been populated.
-      auto get_result = GetRequest(curl, collection.schema_collection_contents_url, collection.contents_sha256);
+      auto get_result = GetRequest(curl, collection.source.url.value(), collection.source.sha256);
 
       if (get_result.first != 200)
       {
-        // If this URL cannot be loaded no big deal, just don't populate the cache, don't raise
-        // an error right now.
-        return;
+        throw IOException("Catalog " + catalog_name + " failed to retrieve schema collection contents from URL: " + collection.source.url.value());
       }
       oh = msgpack::unpack((const char *)get_result.second.data(), get_result.second.size(), 0);
+    }
+    else
+    {
+      throw IOException("Catalog " + catalog_name + " has no serialized or URL contents for its schema collection");
     }
 
     std::vector<std::vector<std::string>> unpacked_data = oh.get().as<std::vector<std::vector<std::string>>>();
 
+    // Each item contained in the serailized catalog will be a SHA256 then the
+    // the actual value.
+    //
+    // the SHA256 will be used to check, if the data is corrupted.
+    // then used as part of the filename to store the data on disk.
     for (auto &item : unpacked_data)
     {
       if (item.size() != 2)
@@ -306,16 +296,16 @@ namespace duckdb
         throw IOException("Catalog schema cache contents had an item where size != 2");
       }
 
-      const string found_sha = SHA256ForString(item[1]);
       const string &expected_sha = item[0];
+      const string found_sha = SHA256ForString(item[1]);
       if (found_sha != expected_sha)
       {
-        auto error_prefix = "Catalog " + catalog_name + " SHA256 Mismatch expected " + collection.contents_sha256 + " found " + found_sha;
+        auto error_prefix = "Catalog " + catalog_name + " SHA256 Mismatch expected " + expected_sha + " found " + found_sha;
 
         // There is corruption.
-        if (collection.contents_serialized.empty())
+        if (collection.source.url.has_value())
         {
-          throw IOException(error_prefix + " from URL: " + collection.schema_collection_contents_url);
+          throw IOException(error_prefix + " from URL: " + collection.source.url.value());
         }
         else
         {
@@ -332,51 +322,60 @@ namespace duckdb
       fs->MoveFile(tempFilename, paths.second);
     }
 
+    // There is a bit of a problem here, we could have an infinite set of
+    // schema temp files being written, because if a server is dynamically generating
+    // its schemas, the SHA256 will always change.
+    //
+    // Rusty address this later on.
+
     // Write a file that the cache has been populated with the top level SHA256
     // value, so that we can skip doing this next time all schemas are used.
     writeToTempFile(*fs, sentinel_paths.second, "1");
   }
 
   // Function to handle caching
-  static std::pair<long, std::string> getCachedRequestData(CURL *curl, const string &url,
-                                                           const string &expected_sha256,
-                                                           const string &serialized,
+  static std::pair<long, std::string> getCachedRequestData(CURL *curl,
+                                                           const AirportSerializedContentsWithSHA256Hash &source,
                                                            const string &baseDir)
   {
-    if (expected_sha256.empty())
+    if (source.sha256.empty())
     {
       // Can't cache anything since we don't know the expected sha256 value.
       // and the caching is based on the sha256 values.
       //
       // So if there was inline content supplied use that and fake that it was
       // retrieved from a server.
-      if (!serialized.empty())
+      if (source.serialized.has_value())
       {
-        return std::make_pair(200, serialized);
+        return std::make_pair(200, source.serialized.value());
+      }
+      else if (source.url.has_value())
+      {
+        return GetRequest(curl, source.url.value(), source.sha256);
       }
       else
       {
-        return GetRequest(curl, url, expected_sha256);
+        throw IOException("SHA256 is empty and URL is empty");
       }
     }
 
     // If the user supplied an inline serialized value, check if the sha256 matches, if so
     // use it otherwise fall abck to the url
-    if (!serialized.empty())
+    if (source.serialized.has_value())
     {
-      if (SHA256ForString(serialized) == expected_sha256)
+      if (SHA256ForString(source.serialized.value()) == source.sha256)
       {
-        return std::make_pair(200, serialized);
+        return std::make_pair(200, source.serialized.value());
       }
-      if (url.empty())
+      if (!source.url.has_value())
       {
-        throw IOException("SHA256 mismatch inline serialized data and URL is empty");
+        throw IOException("SHA256 mismatch for inline serialized data and URL is empty");
       }
     }
 
     auto fs = FileSystem::CreateLocal();
 
-    auto paths = GetCachePath(*fs, expected_sha256, baseDir);
+    auto paths = GetCachePath(*fs, source.sha256, baseDir);
 
     // Check if data is in cache
     if (fs->FileExists(paths.second))
@@ -386,9 +385,9 @@ namespace duckdb
       {
         // Verify that the SHA256 matches the returned data, don't allow a corrupted filesystem
         // to affect things.
-        if (!expected_sha256.empty() && SHA256ForString(cachedData) != expected_sha256)
+        if (!source.sha256.empty() && SHA256ForString(cachedData) != source.sha256)
         {
-          throw IOException("SHA256 mismatch for URL: %s from cached data at %s, check for cache corruption", url, paths.second.c_str());
+          throw IOException("SHA256 mismatch for URL: %s from cached data at %s, check for cache corruption", source.url.value(), paths.second.c_str());
         }
         return std::make_pair(200, cachedData);
       }
@@ -397,7 +396,7 @@ namespace duckdb
     // I know this doesn't work for zero byte cached responses, its okay.
 
     // Data not in cache, fetch it
-    auto get_result = GetRequest(curl, url, expected_sha256);
+    auto get_result = GetRequest(curl, source.url.value(), source.sha256);
 
     if (get_result.first != 200)
     {
@@ -463,7 +462,7 @@ namespace duckdb
     auto parsed_app_metadata = ParseFlightAppMetadata(app_metadata);
     if (!(parsed_app_metadata->catalog == target_catalog && parsed_app_metadata->schema == target_schema))
     {
-      return;
+      throw IOException("Mismatch in metadata for catalog " + parsed_app_metadata->catalog + " schema " + parsed_app_metadata->schema + " expected " + target_catalog + " schema " + target_schema);
     }
 
     if (parsed_app_metadata->type == "table")
@@ -552,65 +551,82 @@ namespace duckdb
     }
   }
 
-  //  std::pair<vector<AirportAPITable>, vector<AirportAPIScalarFunction>>
   unique_ptr<AirportSchemaContents>
   AirportAPI::GetSchemaItems(CURL *curl,
                              const string &catalog,
                              const string &schema,
-                             const string &schema_contents_url,
-                             const string &schema_contents_sha256,
-                             const string &schema_contents_serialized,
+                             const AirportSerializedContentsWithSHA256Hash &source,
                              const string &cache_base_dir,
                              AirportCredentials credentials)
   {
     auto contents = make_uniq<AirportSchemaContents>();
 
-    if (!(schema_contents_url.empty() && schema_contents_serialized.empty() && schema_contents_sha256.empty()))
+    // So the value can be provided by an external URL or inline, but either way
+    // we must have a SHA256 provided, because if the overall catalog populated the
+    // cache at the top level it wrote the data for each schema to a sha256 named file
+    // in the on disk cache.
+    //
+    // this is still a bit messy.
+    if (
+        source.url.has_value() ||
+        source.serialized.has_value() ||
+        !source.sha256.empty())
     {
       string url_contents;
-      auto get_response = getCachedRequestData(curl, schema_contents_url, schema_contents_sha256, schema_contents_serialized, cache_base_dir);
+      auto get_response = getCachedRequestData(curl, source, cache_base_dir);
 
       if (get_response.first != 200)
       {
-        throw IOException("Failed to get Airport schema contents from URL: %s http response code %ld", schema_contents_url, get_response.first);
+        throw IOException("Failed to get Airport schema contents from URL: %s http response code %ld", source.url.value(), get_response.first);
       }
       url_contents = get_response.second;
 
       // So this data has this layout
 
-      // We should change this to message pack.
+      AirportSerializedCompressedContent compressed_content;
+      try
+      {
+        msgpack::object_handle oh = msgpack::unpack(
+            (const char *)url_contents.data(),
+            url_contents.size(),
+            0);
+        msgpack::object obj = oh.get();
+        obj.convert(compressed_content);
+      }
+      catch (const std::exception &e)
+      {
+        throw AirportFlightException(credentials.location,
+                                     "File to parse msgpack encoded object describing Arrow Flight schema data: " + string(e.what()));
+      }
 
-      // 4 byte length - decompressed length of contents
-      //
-      // Then the decompressed result is just a list
-      // of serialized FlightInfo objects.
-      auto url_contents_view = std::string_view(url_contents.data(), url_contents.size());
-
-      auto decompressed_length = ExtractU32FromString(url_contents_view);
       auto codec = arrow::util::Codec::Create(arrow::Compression::ZSTD).ValueOrDie();
-      AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(auto decompressed_url_contents, ::arrow::AllocateBuffer(decompressed_length), credentials.location, "");
+      AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(auto decompressed_url_contents, ::arrow::AllocateBuffer(compressed_content.length), credentials.location, "");
 
-      const size_t size_of_size = 4;
       auto decompress_result = codec->Decompress(
-          url_contents.size() - size_of_size, reinterpret_cast<const uint8_t *>(url_contents.data() + size_of_size),
-          decompressed_length, decompressed_url_contents->mutable_data());
+          compressed_content.data.size(),
+          reinterpret_cast<const uint8_t *>(compressed_content.data.data()),
+          compressed_content.length,
+          decompressed_url_contents->mutable_data());
 
       AIRPORT_ARROW_ASSERT_OK_LOCATION(decompress_result, credentials.location, "");
 
-      msgpack::object_handle oh = msgpack::unpack((const char *)decompressed_url_contents->data(), decompressed_length, 0);
+      msgpack::object_handle oh = msgpack::unpack(
+          (const char *)decompressed_url_contents->data(),
+          compressed_content.length,
+          0);
       std::vector<std::string> unpacked_data = oh.get().as<std::vector<std::string>>();
 
       for (auto item : unpacked_data)
       {
         AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(auto flight_info, arrow::flight::FlightInfo::Deserialize(item), credentials.location, "");
 
-        // Look in api_metadata for each flight and determine if it should be a table.
+        // Look in api_metadata for each flight and determine if it should be handled
+        // if there is no metadata specified on a flight it is ignored.
         auto app_metadata = flight_info->app_metadata();
-        if (app_metadata.empty())
+        if (!app_metadata.empty())
         {
-          continue;
+          handle_flight_app_metadata(app_metadata, catalog, schema, credentials.location, std::move(flight_info), contents);
         }
-        handle_flight_app_metadata(app_metadata, catalog, schema, credentials.location, std::move(flight_info), contents);
       }
 
       return contents;
@@ -636,64 +652,16 @@ namespace duckdb
       {
         // Look in api_metadata for each flight and determine if it should be a table.
         auto app_metadata = flight_info->app_metadata();
-        if (app_metadata.empty())
+        if (!app_metadata.empty())
         {
-          continue;
+          handle_flight_app_metadata(app_metadata, catalog, schema, credentials.location, flight_info, contents);
         }
-        handle_flight_app_metadata(app_metadata, catalog, schema, credentials.location, flight_info, contents);
-
-        // FIXME: there needs to be more code here to create the actual table.
-        // Rusty look into this.
-
         AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(flight_info, listing->Next(), credentials.location, "");
       }
 
       return contents;
     }
   }
-
-  struct SerializedCatalogSchemaRequest
-  {
-    std::string catalog_name;
-
-    MSGPACK_DEFINE_MAP(catalog_name)
-  };
-
-  struct SerializedContentsWithSHA256Hash
-  {
-    // The URL where the serialized contents of the schema or catalog can be retrieved.
-    std::optional<std::string> url;
-    // The SHA256 of the serialized contents.
-    std::optional<std::string> sha256;
-    // The inline serialized contents of either the schema or catalog
-    std::optional<std::string> serialized;
-
-    MSGPACK_DEFINE_MAP(url, sha256, serialized)
-  };
-
-  struct SerializedSchema
-  {
-    // The name of the schema
-    std::string schema;
-    // The description of the schema
-    std::string description;
-    // Any tags to apply to the schema.
-    std::unordered_map<std::string, std::string> tags;
-    // The contents of the schema itself.
-    SerializedContentsWithSHA256Hash contents;
-
-    MSGPACK_DEFINE_MAP(schema, description, tags, contents)
-  };
-
-  struct SerializedCatalogRoot
-  {
-    // The contents of the catalog itself.
-    SerializedContentsWithSHA256Hash contents;
-    // A list of schemas.
-    std::vector<SerializedSchema> schemas;
-
-    MSGPACK_DEFINE_MAP(contents, schemas)
-  };
 
   unique_ptr<AirportSchemaCollection>
   AirportAPI::GetSchemas(const string &catalog, AirportCredentials credentials)
@@ -707,44 +675,61 @@ namespace duckdb
 
     std::unique_ptr<flight::FlightClient> &flight_client = FlightClientForLocation(credentials.location);
 
-    SerializedCatalogSchemaRequest catalog_request = {catalog};
+    AirportSerializedCatalogSchemaRequest catalog_request = {catalog};
     std::stringstream packed_buffer;
     msgpack::pack(packed_buffer, catalog_request);
     arrow::flight::Action action{"list_schemas", arrow::Buffer::FromString(packed_buffer.str())};
 
     std::unique_ptr<arrow::flight::ResultStream> action_results;
     AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(action_results, flight_client->DoAction(call_options, action), credentials.location, "");
-    // the first item returned is the decompressed length of the schema data.
-    AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(auto decompressed_schema_length_buffer, action_results->Next(), credentials.location, "");
 
-    if (decompressed_schema_length_buffer == nullptr)
+    // There is a single item returned which is the compressed schema data.
+    AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(auto msgpack_serialized_response, action_results->Next(), credentials.location, "");
+
+    if (msgpack_serialized_response == nullptr)
     {
       throw AirportFlightException(credentials.location, "Failed to obtain schema data from Arrow Flight server via DoAction()");
     }
 
-    // the second is the compressed schema data in msgpack format.
-    AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(auto compressed_schema_data, action_results->Next(), credentials.location, "");
+    AirportSerializedCompressedContent compressed_content;
+    try
+    {
+      auto &body_buffer = msgpack_serialized_response.get()->body;
 
-    // Expand the compressed data that was compressed with zstd.
-    auto decompressed_length = ExtractU32FromString({(const char *)decompressed_schema_length_buffer->body->data(), 4});
+      msgpack::object_handle oh = msgpack::unpack(
+          (const char *)body_buffer->data(),
+          body_buffer->size(),
+          0);
+      msgpack::object obj = oh.get();
+      obj.convert(compressed_content);
+    }
+    catch (const std::exception &e)
+    {
+      throw AirportFlightException(credentials.location, "File to parse msgpack encoded object describing Arrow Flight schema data: " + string(e.what()));
+    }
 
     AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(
         auto codec,
         arrow::util::Codec::Create(arrow::Compression::ZSTD),
         credentials.location, "");
 
-    AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(auto decompressed_schema_data, ::arrow::AllocateBuffer(decompressed_length), credentials.location, "");
+    AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(auto decompressed_schema_data,
+                                            ::arrow::AllocateBuffer(compressed_content.length),
+                                            credentials.location,
+                                            "");
 
     auto decompress_result = codec->Decompress(
-        compressed_schema_data->body->size(), reinterpret_cast<const uint8_t *>(compressed_schema_data->body->data()),
-        decompressed_length, decompressed_schema_data->mutable_data());
+        compressed_content.data.size(),
+        reinterpret_cast<const uint8_t *>(compressed_content.data.data()),
+        compressed_content.length,
+        decompressed_schema_data->mutable_data());
 
-    AIRPORT_ARROW_ASSERT_OK_LOCATION(decompress_result, credentials.location, "");
+    AIRPORT_ARROW_ASSERT_OK_LOCATION(decompress_result, credentials.location, "Failed to decompress the schema data");
 
-    SerializedCatalogRoot catalog_root;
+    AirportSerializedCatalogRoot catalog_root;
     try
     {
-      msgpack::object_handle oh = msgpack::unpack((const char *)decompressed_schema_data->data(), decompressed_length, 0);
+      msgpack::object_handle oh = msgpack::unpack((const char *)decompressed_schema_data->data(), compressed_content.length, 0);
       msgpack::object obj = oh.get();
       obj.convert(catalog_root);
     }
@@ -753,9 +738,7 @@ namespace duckdb
       throw InvalidInputException("Failed to parse MsgPack object describing catalog root %s", e.what());
     }
 
-    result->schema_collection_contents_url = catalog_root.contents.url ? catalog_root.contents.url.value() : "";
-    result->contents_sha256 = catalog_root.contents.sha256 ? catalog_root.contents.sha256.value() : "";
-    result->contents_serialized = catalog_root.contents.serialized ? catalog_root.contents.serialized.value() : "";
+    result->source = catalog_root.contents;
 
     for (auto &schema : catalog_root.schemas)
     {
@@ -764,9 +747,8 @@ namespace duckdb
       schema_result.catalog_name = catalog;
       schema_result.comment = schema.description;
       schema_result.tags = schema.tags;
-      schema_result.contents_url = schema.contents.url ? schema.contents.url.value() : "";
-      schema_result.contents_sha256 = schema.contents.sha256 ? schema.contents.sha256.value() : "";
-      schema_result.contents_serialized = schema.contents.serialized ? schema.contents.serialized.value() : "";
+
+      schema_result.source = schema.contents;
       result->schemas.emplace_back(schema_result);
     }
 

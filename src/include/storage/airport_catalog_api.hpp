@@ -4,10 +4,78 @@
 
 #include <arrow/flight/client.h>
 #include <curl/curl.h>
+#include <msgpack.hpp>
 
 namespace duckdb
 {
   struct AirportCredentials;
+
+  struct AirportSerializedCatalogSchemaRequest
+  {
+    std::string catalog_name;
+
+    MSGPACK_DEFINE_MAP(catalog_name)
+  };
+
+  struct AirportSerializedCompressedContent
+  {
+    // The uncompressed length of the data.
+    uint32_t length;
+    // The compressed data using ZStandard.
+    std::string data;
+
+    MSGPACK_DEFINE(length, data)
+  };
+
+  struct AirportSerializedURLAndSHA256Hash
+  {
+    // The URL where the serialized contents of the schema or catalog can be retrieved.
+    std::string url;
+    // The SHA256 of the serialized contents.
+    std::string sha256;
+
+    MSGPACK_DEFINE_MAP(url, sha256)
+  };
+
+  struct AirportSerializedContentsWithSHA256Hash
+  {
+    // The SHA256 of the serialized contents.
+    // or the external url.
+    std::string sha256;
+
+    // The external URL where the contents should be obtained.
+    std::optional<std::string> url;
+
+    // The inline serialized contents.
+    std::optional<std::string> serialized;
+
+    // FIX the python side for this.
+    MSGPACK_DEFINE_MAP(sha256, url, serialized)
+  };
+
+  struct AirportSerializedSchema
+  {
+    // The name of the schema
+    std::string schema;
+    // The description of the schema
+    std::string description;
+    // Any tags to apply to the schema.
+    std::unordered_map<std::string, std::string> tags;
+    // The contents of the schema itself.
+    AirportSerializedContentsWithSHA256Hash contents;
+
+    MSGPACK_DEFINE_MAP(schema, description, tags, contents)
+  };
+
+  struct AirportSerializedCatalogRoot
+  {
+    // The contents of the catalog itself.
+    AirportSerializedContentsWithSHA256Hash contents;
+    // A list of schemas.
+    std::vector<AirportSerializedSchema> schemas;
+
+    MSGPACK_DEFINE_MAP(contents, schemas)
+  };
 
   struct AirportAPITable
   {
@@ -80,22 +148,12 @@ namespace duckdb
     string comment;
     unordered_map<string, string> tags;
 
-    // An optional URL to the contents of the schema.
-    string contents_url;
-    // The SHA256 hash of the contents of the schema.
-    string contents_sha256;
-
-    // The actual contents of the schema if provided inline.
-    string contents_serialized;
+    AirportSerializedContentsWithSHA256Hash source;
   };
 
   struct AirportSchemaCollection
   {
-    // An optional URL that contains all of the contents for all of the schemas.
-    string schema_collection_contents_url;
-    // The SHA256 of the contents url.
-    string contents_sha256;
-    string contents_serialized;
+    AirportSerializedContentsWithSHA256Hash source;
 
     vector<AirportAPISchema> schemas;
   };
@@ -116,9 +174,7 @@ namespace duckdb
     static unique_ptr<AirportSchemaContents> GetSchemaItems(CURL *curl,
                                                             const string &catalog,
                                                             const string &schema,
-                                                            const string &schema_contents_url,
-                                                            const string &schema_contents_sha256,
-                                                            const string &schema_contents_serialized,
+                                                            const AirportSerializedContentsWithSHA256Hash &source,
                                                             const string &cache_base_dir,
                                                             AirportCredentials credentials);
     static unique_ptr<AirportSchemaCollection> GetSchemas(const string &catalog, AirportCredentials credentials);

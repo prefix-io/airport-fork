@@ -83,8 +83,9 @@ namespace duckdb
     // cached content that is already present on the disk, or if the schema
     // is serialized inline that will be used.
     //
-    if (!populated_entire_set && !collection->contents_sha256.empty() &&
-        !(collection->contents_serialized.empty() && collection->schema_collection_contents_url.empty()))
+    if (!populated_entire_set &&
+        !collection->source.sha256.empty() &&
+        (collection->source.serialized.has_value() || collection->source.url.has_value()))
     {
       auto cache_path = DuckDBHomeDirectory(context);
 

@@ -109,9 +109,7 @@ namespace duckdb
         curl,
         catalog.GetDBPath(),
         schema.name,
-        schema.schema_data->contents_url,
-        schema.schema_data->contents_sha256,
-        schema.schema_data->contents_serialized,
+        schema.schema_data->source,
         cache_directory,
         airport_catalog.credentials);
     connection_pool.release(curl);
@@ -506,9 +504,7 @@ namespace duckdb
         curl,
         catalog.GetDBPath(),
         schema.name,
-        schema.schema_data->contents_url,
-        schema.schema_data->contents_sha256,
-        schema.schema_data->contents_serialized,
+        schema.schema_data->source,
         cache_directory,
         airport_catalog.credentials);
 
@@ -1233,9 +1229,7 @@ namespace duckdb
         curl,
         catalog.GetDBPath(),
         schema.name,
-        schema.schema_data->contents_url,
-        schema.schema_data->contents_sha256,
-        schema.schema_data->contents_serialized,
+        schema.schema_data->source,
         cache_directory,
         airport_catalog.credentials);
 
