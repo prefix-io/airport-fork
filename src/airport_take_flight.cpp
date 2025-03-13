@@ -610,7 +610,9 @@ namespace duckdb
 
     // No unpack the serialized result.
     GetFlightColumnStatisticsResult col_stats;
+    // Do this to make the memory sanitizer okay with the union
     memset(&col_stats, 0, sizeof(col_stats));
+
     try
     {
       msgpack::object_handle oh = msgpack::unpack(
