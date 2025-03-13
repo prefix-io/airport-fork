@@ -158,12 +158,6 @@ The Airport extension respects the scope(s) specified in the secret.  If a value
 
 ## Implementation Notes
 
-### Memory Alignment of Apache Arrow Buffers
-
-This extension applied a change to the C interface of Apache Arrow that enforces the 8-byte alignment of the column data.  DuckDB requires that this alignment is present, Apache Arrow and Arrow Flight do not require this.
-
-If other extensions use Apache Arrow please ensure that the patch `align-record-batch.patch` is applied from `vcpkg-overlay/arrow`.
-
 ## Building the extension
 
 ```sh
