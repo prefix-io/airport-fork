@@ -105,7 +105,7 @@ namespace duckdb
     // Its assumed that the work will be done in the LogicalUpdate or LogicalDelete
     bool skip_producing_result_for_update_or_delete = false;
 
-    // When doing a dynamic table functino we need this.
+    // When doing a dynamic table function we need this.
     std::shared_ptr<GetFlightInfoTableFunctionParameters> table_function_parameters;
   };
 
