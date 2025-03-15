@@ -50,7 +50,7 @@ namespace duckdb
     auto &update = op->Cast<LogicalUpdate>();
     auto &airport_table = update.table.Cast<AirportTableEntry>();
 
-    // If the table produced row_ids we cannot optimize it.
+    // If the table produced rowids we cannot optimize it.
     if (airport_table.GetRowIdType() != LogicalType::SQLNULL)
       return;
 
@@ -65,7 +65,7 @@ namespace duckdb
     auto &del = op->Cast<LogicalDelete>();
     auto &airport_table = del.table.Cast<AirportTableEntry>();
 
-    // If the table produced row_ids we cannot optimize it.
+    // If the table produced rowids we cannot optimize it.
     if (airport_table.GetRowIdType() != LogicalType::SQLNULL)
       return;
 
