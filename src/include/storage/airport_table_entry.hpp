@@ -62,6 +62,8 @@ namespace duckdb
   private:
     //! A logical type for the rowid of this table.
     LogicalType rowid_type = LogicalType(LogicalType::ROW_TYPE);
+
+    Catalog &catalog;
   };
 
 } // namespace duckdb
