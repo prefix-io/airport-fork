@@ -380,8 +380,13 @@ namespace duckdb
     AIRPORT_ARROW_ASSERT_OK_LOCATION(action_results->Drain(), airport_catalog.credentials->location, "");
 
     // FIXME: need to extract the rowid type from the schema, I think there is function that does this.
+    auto rowid_type = AirportAPI::GetRowIdType(
+        context,
+        flight_info,
+        airport_catalog.credentials->location,
+        flight_info->descriptor());
 
-    auto table_entry = make_uniq<AirportTableEntry>(catalog, this->schema, base, LogicalType(LogicalTypeId::BIGINT));
+    auto table_entry = make_uniq<AirportTableEntry>(catalog, this->schema, base, rowid_type);
     AirportAPITable new_table(
         airport_catalog.credentials->location,
         flight_info,

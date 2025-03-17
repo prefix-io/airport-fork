@@ -41,7 +41,10 @@ namespace duckdb
     virtual_column_map_t GetVirtualColumns() const override
     {
       virtual_column_map_t virtual_columns;
-      virtual_columns.insert(make_pair(COLUMN_IDENTIFIER_ROW_ID, TableColumn("rowid", rowid_type)));
+      if (rowid_type.id() != LogicalTypeId::INVALID)
+      {
+        virtual_columns.insert(make_pair(COLUMN_IDENTIFIER_ROW_ID, TableColumn("rowid", rowid_type)));
+      }
       return virtual_columns;
     }
 
