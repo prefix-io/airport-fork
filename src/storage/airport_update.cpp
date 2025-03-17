@@ -138,6 +138,8 @@ namespace duckdb
         GetTypes(),
         return_chunk);
 
+    auto &transaction = AirportTransaction::Get(context, table.catalog);
+
     update_global_state->send_types = send_types;
 
     ArrowSchema send_schema;
@@ -164,7 +166,8 @@ namespace duckdb
                                       send_schema,
                                       return_chunk,
                                       "update",
-                                      table_column_names);
+                                      table_column_names,
+                                      transaction.identifier);
 
     return std::move(update_global_state);
   }
