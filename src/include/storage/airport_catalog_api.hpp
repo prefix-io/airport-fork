@@ -187,7 +187,7 @@ namespace duckdb
 
     static std::shared_ptr<arrow::flight::FlightClient> FlightClientForLocation(const std::string &location);
 
-    // The the rowid column type, LogicalType::INVALID if none is present.
+    // The the rowid column type, LogicalType::SQLNULL if none is present.
     static LogicalType GetRowIdType(ClientContext &context,
                                     std::shared_ptr<arrow::flight::FlightInfo> flight_info,
                                     const string &location,
