@@ -15,7 +15,8 @@ namespace duckdb
         TableCatalogEntry &table,
         vector<PhysicalIndex> columns, vector<unique_ptr<Expression>> expressions,
         vector<unique_ptr<Expression>> bound_defaults, vector<unique_ptr<BoundConstraint>> bound_constraints,
-        idx_t estimated_cardinality, bool return_chunk);
+        idx_t estimated_cardinality, bool return_chunk,
+        bool update_is_del_and_insert);
 
     //      LogicalOperator &op, TableCatalogEntry &table, vector<PhysicalIndex> columns, bool return_chunk);
 

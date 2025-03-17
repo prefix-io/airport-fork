@@ -36,7 +36,7 @@ namespace duckdb
     if (child.type == PhysicalOperatorType::FILTER)
     {
       auto &filter = child.Cast<PhysicalFilter>();
-      auto result = ExtractFilters(*child.children[0], statement);
+      auto result = ExtractFilters(child.children[0], statement);
       auto filter_str = filter.expression->ToString();
       if (result.empty())
       {

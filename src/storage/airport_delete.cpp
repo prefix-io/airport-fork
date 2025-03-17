@@ -338,8 +338,10 @@ namespace duckdb
   //===--------------------------------------------------------------------===//
   // Plan
   //===--------------------------------------------------------------------===//
-  unique_ptr<PhysicalOperator> AirportCatalog::PlanDelete(ClientContext &context, LogicalDelete &op,
-                                                          unique_ptr<PhysicalOperator> plan)
+  PhysicalOperator &AirportCatalog::PlanDelete(ClientContext &context,
+                                               PhysicalPlanGenerator &planner,
+                                               LogicalDelete &op,
+                                               PhysicalOperator &plan)
   {
     auto &bound_ref = op.expressions[0]->Cast<BoundReferenceExpression>();
     // AirportCatalog::MaterializeAirportScans(*plan);
@@ -352,14 +354,14 @@ namespace duckdb
         throw BinderException("RETURNING clause not yet supported for parameterized delete using an Airport table");
       }
 
-      auto del = make_uniq<AirportDeleteParameterized>(op, op.table, *plan);
-      del->children.push_back(std::move(plan));
-      return std::move(del);
+      auto &del = planner.Make<AirportDeleteParameterized>(op, op.table, plan);
+      del.children.push_back(plan);
+      return del;
     }
 
-    auto del = make_uniq<AirportDelete>(op, op.table, bound_ref.index, op.return_chunk);
-    del->children.push_back(std::move(plan));
-    return std::move(del);
+    auto &del = planner.Make<AirportDelete>(op, op.table, bound_ref.index, op.return_chunk);
+    del.children.push_back(plan);
+    return del;
   }
 
 } // namespace duckdb

@@ -379,7 +379,8 @@ namespace duckdb
     // We aren't interested in anything after the first result.
     AIRPORT_ARROW_ASSERT_OK_LOCATION(action_results->Drain(), airport_catalog.credentials->location, "");
 
-    // FIXME: check to make sure the rowid column is the correct type, this seems to be missing here.
+    // FIXME: need to extract the rowid type from the schema, I think there is function that does this.
+
     auto table_entry = make_uniq<AirportTableEntry>(catalog, this->schema, base, LogicalType(LogicalTypeId::BIGINT));
     AirportAPITable new_table(
         airport_catalog.credentials->location,

@@ -33,7 +33,7 @@ namespace duckdb
     if (child.type == PhysicalOperatorType::FILTER)
     {
       auto &filter = child.Cast<PhysicalFilter>();
-      string result = ExtractFilters(*child.children[0], statement);
+      string result = ExtractFilters(child.children[0], statement);
       return result.empty() ? filter.expression->ToString() : result + " AND " + filter.expression->ToString();
     }
 
@@ -51,7 +51,7 @@ namespace duckdb
     if (child.type == PhysicalOperatorType::PROJECTION)
     {
       //      auto &proj = child.Cast<PhysicalProjection>();
-      return ExtractFilters(*child.children[0], statement);
+      return ExtractFilters(child.children[0], statement);
     }
 
     // Handle unsupported operator types
@@ -99,7 +99,7 @@ namespace duckdb
       }
     }
 
-    auto filters = ExtractFilters(*child.children[0], "UPDATE");
+    auto filters = ExtractFilters(child.children[0], "UPDATE");
     return {expressions, filters};
   }
 

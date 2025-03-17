@@ -31,11 +31,12 @@ namespace duckdb
       TableCatalogEntry &table,
       vector<PhysicalIndex> columns, vector<unique_ptr<Expression>> expressions,
       vector<unique_ptr<Expression>> bound_defaults, vector<unique_ptr<BoundConstraint>> bound_constraints,
-      idx_t estimated_cardinality, bool return_chunk)
+      idx_t estimated_cardinality, bool return_chunk, bool update_is_del_and_insert)
       : PhysicalOperator(PhysicalOperatorType::EXTENSION, op.types, estimated_cardinality),
         table(table),
         columns(std::move(columns)), expressions(std::move(expressions)),
         bound_defaults(std::move(bound_defaults)), bound_constraints(std::move(bound_constraints)),
+        update_is_del_and_insert(update_is_del_and_insert),
         return_chunk(return_chunk)
   {
     auto &table_columns = table.GetColumns();
@@ -421,8 +422,9 @@ namespace duckdb
   //===--------------------------------------------------------------------===//
   // Plan
   //===--------------------------------------------------------------------===//
-  unique_ptr<PhysicalOperator> AirportCatalog::PlanUpdate(ClientContext &context, LogicalUpdate &op,
-                                                          unique_ptr<PhysicalOperator> plan)
+  PhysicalOperator &AirportCatalog::PlanUpdate(ClientContext &context,
+                                               PhysicalPlanGenerator &planner, LogicalUpdate &op,
+                                               PhysicalOperator &plan)
   {
     auto &airport_table = op.table.Cast<AirportTableEntry>();
     for (auto &expr : op.expressions)
@@ -440,22 +442,23 @@ namespace duckdb
         throw BinderException("RETURNING clause not yet supported for parameterized update of an Airport table");
       }
 
-      auto upd = make_uniq<AirportUpdateParameterized>(op, op.table, *plan);
-      upd->children.push_back(std::move(plan));
-      return std::move(upd);
+      auto &upd = planner.Make<AirportUpdateParameterized>(op, op.table, plan);
+      upd.children.push_back(plan);
+      return upd;
     }
 
-    auto update = make_uniq<AirportUpdate>(op,
-                                           op.types,
-                                           op.table,
-                                           op.columns,
-                                           std::move(op.expressions), std::move(op.bound_defaults),
-                                           std::move(op.bound_constraints), op.estimated_cardinality, op.return_chunk);
+    auto &update = planner.Make<AirportUpdate>(op,
+                                               op.types,
+                                               op.table,
+                                               op.columns,
+                                               std::move(op.expressions), std::move(op.bound_defaults),
+                                               std::move(op.bound_constraints),
+                                               op.estimated_cardinality,
+                                               op.return_chunk,
+                                               op.update_is_del_and_insert);
 
-    update->update_is_del_and_insert = op.update_is_del_and_insert;
-
-    update->children.push_back(std::move(plan));
-    return std::move(update);
+    update.children.push_back(plan);
+    return update;
   }
 
 } // namespace duckdb

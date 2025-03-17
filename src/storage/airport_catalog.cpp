@@ -9,6 +9,7 @@
 #include "storage/airport_delete.hpp"
 #include "storage/airport_insert.hpp"
 #include "duckdb/planner/operator/logical_create_table.hpp"
+#include "duckdb/execution/physical_operator.hpp"
 #include <arrow/flight/client.h>
 #include <arrow/flight/types.h>
 #include <arrow/buffer.h>
@@ -151,12 +152,14 @@ namespace duckdb
     schemas.ClearEntries();
   }
 
-  unique_ptr<PhysicalOperator> AirportCatalog::PlanCreateTableAs(ClientContext &context, LogicalCreateTable &op,
-                                                                 unique_ptr<PhysicalOperator> plan)
+  PhysicalOperator &AirportCatalog::PlanCreateTableAs(ClientContext &context,
+                                                      PhysicalPlanGenerator &planner,
+                                                      LogicalCreateTable &op,
+                                                      PhysicalOperator &plan)
   {
-    auto insert = make_uniq<AirportInsert>(op, op.schema, std::move(op.info), false);
-    insert->children.push_back(std::move(plan));
-    return std::move(insert);
+    auto &insert = planner.Make<AirportInsert>(op, op.schema, std::move(op.info), false);
+    insert.children.push_back(plan);
+    return insert;
   }
 
   unique_ptr<LogicalOperator> AirportCatalog::BindCreateIndex(Binder &binder, CreateStatement &stmt, TableCatalogEntry &table,

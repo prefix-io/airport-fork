@@ -456,8 +456,10 @@ namespace duckdb
     return result;
   }
 
-  unique_ptr<PhysicalOperator> AirportCatalog::PlanInsert(ClientContext &context, LogicalInsert &op,
-                                                          unique_ptr<PhysicalOperator> plan)
+  PhysicalOperator &AirportCatalog::PlanInsert(ClientContext &context,
+                                               PhysicalPlanGenerator &planner,
+                                               LogicalInsert &op,
+                                               optional_ptr<PhysicalOperator> plan)
   {
 
     if (op.action_type != OnConflictAction::THROW)
@@ -467,7 +469,7 @@ namespace duckdb
 
     //    plan = AddCastToAirportTypes(context, std::move(plan));
 
-    auto insert = make_uniq<AirportInsert>(
+    auto &insert = planner.Make<AirportInsert>(
         op,
         op.table,
         op.column_index_map,
@@ -475,8 +477,11 @@ namespace duckdb
         std::move(op.bound_defaults),
         std::move(op.bound_constraints));
 
-    insert->children.push_back(std::move(plan));
-    return std::move(insert);
+    if (plan)
+    {
+      insert.children.push_back(*plan);
+    }
+    return insert;
   }
 
   // unique_ptr<PhysicalOperator> AirportCatalog::PlanCreateTableAs(ClientContext &context, LogicalCreateTable &op,
