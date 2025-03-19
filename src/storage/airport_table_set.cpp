@@ -304,7 +304,29 @@ namespace duckdb
     throw NotImplementedException("AirportTableSet::GetTableInfo");
   }
 
-  optional_ptr<CatalogEntry> AirportTableSet::CreateTable(ClientContext &context, BoundCreateTableInfo &info)
+  struct AirportCreateTableParameters
+  {
+    std::string catalog_name;
+    std::string schema_name;
+    std::string table_name;
+
+    // The serialized Arrow schema for the table.
+    std::string arrow_schema;
+
+    // This will be "error", "ignore", or "replace"
+    std::string on_conflict;
+
+    // The list of constraint expressions.
+    std::vector<uint64_t> not_null_constraints;
+    std::vector<uint64_t> unique_constraints;
+    std::vector<std::string> check_constraints;
+
+    MSGPACK_DEFINE_MAP(catalog_name, schema_name, table_name, arrow_schema, on_conflict,
+                       not_null_constraints, unique_constraints, check_constraints)
+  };
+
+  optional_ptr<CatalogEntry>
+  AirportTableSet::CreateTable(ClientContext &context, BoundCreateTableInfo &info)
   {
     auto &airport_catalog = catalog.Cast<AirportCatalog>();
     auto &base = info.base->Cast<CreateTableInfo>();
@@ -333,13 +355,11 @@ namespace duckdb
 
     AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(auto real_schema, arrow::ImportSchema(&schema), airport_catalog.credentials->location, "");
 
-    std::shared_ptr<arrow::KeyValueMetadata> schema_metadata = std::make_shared<arrow::KeyValueMetadata>();
-
-    AIRPORT_ARROW_ASSERT_OK_LOCATION(schema_metadata->Set("table_name", base.table), airport_catalog.credentials->location, "");
-    AIRPORT_ARROW_ASSERT_OK_LOCATION(schema_metadata->Set("schema_name", base.schema), airport_catalog.credentials->location, "");
-    AIRPORT_ARROW_ASSERT_OK_LOCATION(schema_metadata->Set("catalog_name", base.catalog), airport_catalog.credentials->location, "");
-
-    real_schema = real_schema->WithMetadata(schema_metadata);
+    //    std::shared_ptr<arrow::KeyValueMetadata> schema_metadata = std::make_shared<arrow::KeyValueMetadata>();
+    //    AIRPORT_ARROW_ASSERT_OK_LOCATION(schema_metadata->Set("table_name", base.table), airport_catalog.credentials->location, "");
+    //    AIRPORT_ARROW_ASSERT_OK_LOCATION(schema_metadata->Set("schema_name", base.schema), airport_catalog.credentials->location, "");
+    //    AIRPORT_ARROW_ASSERT_OK_LOCATION(schema_metadata->Set("catalog_name", base.catalog), airport_catalog.credentials->location, "");
+    //    real_schema = real_schema->WithMetadata(schema_metadata);
 
     // Not make the call, need to include the schema name.
 
@@ -358,8 +378,52 @@ namespace duckdb
         airport_catalog.credentials->location,
         "");
 
+    // So we should change this to pass some proper messagepack data.
+
+    AirportCreateTableParameters params;
+    params.catalog_name = base.catalog;
+    params.schema_name = base.schema;
+    params.table_name = base.table;
+    params.arrow_schema = serialized_schema->ToString();
+    switch (info.base->on_conflict)
+    {
+    case OnCreateConflict::ERROR_ON_CONFLICT:
+      params.on_conflict = "error";
+      break;
+    case OnCreateConflict::IGNORE_ON_CONFLICT:
+      params.on_conflict = "ignore";
+      break;
+    case OnCreateConflict::REPLACE_ON_CONFLICT:
+      params.on_conflict = "replace";
+      break;
+    default:
+      throw NotImplementedException("Unimplemented conflict type");
+    }
+
+    for (auto &c : base.constraints)
+    {
+      if (c->type == ConstraintType::NOT_NULL)
+      {
+        auto not_null_constraint = (NotNullConstraint *)c.get();
+        params.not_null_constraints.push_back(not_null_constraint->index.index);
+      }
+      else if (c->type == ConstraintType::UNIQUE)
+      {
+        auto unique_constraint = (UniqueConstraint *)c.get();
+        params.unique_constraints.push_back(unique_constraint->index.index);
+      }
+      else if (c->type == ConstraintType::CHECK)
+      {
+        auto check_constraint = (CheckConstraint *)c.get();
+        params.check_constraints.push_back(check_constraint->expression->ToString());
+      }
+    }
+
+    std::stringstream packed_buffer;
+    msgpack::pack(packed_buffer, params);
+
     arrow::flight::Action action{"create_table",
-                                 serialized_schema};
+                                 arrow::Buffer::FromString(packed_buffer.str())};
     std::unique_ptr<arrow::flight::ResultStream> action_results;
     AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(action_results, flight_client->DoAction(call_options, action), airport_catalog.credentials->location, "airport_create_table");
 

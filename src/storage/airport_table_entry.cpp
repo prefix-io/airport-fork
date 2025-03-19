@@ -48,7 +48,6 @@ namespace duckdb
     D_ASSERT(table_data->flight_info != nullptr);
     D_ASSERT(!table_data->location.empty());
 
-    // How can we send the current transaction information.
     auto &transaction = AirportTransaction::Get(context, catalog);
 
     // Rusty: this is the place where the transformation happens between table functions and tables.
