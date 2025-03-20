@@ -1155,9 +1155,7 @@ namespace duckdb
         global_state->scan_local_state.get(),
         global_state->scan_global_state.get());
 
-    unique_ptr<duckdb::GlobalTableFunctionState> base_wrapper = std::move(global_state);
-
-    return base_wrapper;
+    return std::move(global_state);
   }
 
   static OperatorResultType AirportTakeFlightInOut(ExecutionContext &context, TableFunctionInput &data_p, DataChunk &input,
