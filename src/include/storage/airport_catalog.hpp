@@ -52,9 +52,9 @@ namespace duckdb
 
     void ScanSchemas(ClientContext &context, std::function<void(SchemaCatalogEntry &)> callback) override;
 
-    optional_ptr<SchemaCatalogEntry> GetSchema(CatalogTransaction transaction, const string &schema_name,
-                                               OnEntryNotFound if_not_found,
-                                               QueryErrorContext error_context = QueryErrorContext()) override;
+    optional_ptr<SchemaCatalogEntry> LookupSchema(CatalogTransaction transaction,
+                                                  const EntryLookupInfo &schema_lookup,
+                                                  OnEntryNotFound if_not_found) override;
 
     PhysicalOperator &PlanCreateTableAs(ClientContext &context, PhysicalPlanGenerator &planner,
                                         LogicalCreateTable &op, PhysicalOperator &plan) override;
@@ -62,11 +62,9 @@ namespace duckdb
                                  optional_ptr<PhysicalOperator> plan) override;
     PhysicalOperator &PlanDelete(ClientContext &context, PhysicalPlanGenerator &planner, LogicalDelete &op,
                                  PhysicalOperator &plan) override;
-    //    PhysicalOperator &PlanDelete(ClientContext &context, PhysicalPlanGenerator &planner, LogicalDelete &op);
 
     PhysicalOperator &PlanUpdate(ClientContext &context, PhysicalPlanGenerator &planner, LogicalUpdate &op,
                                  PhysicalOperator &plan) override;
-    //    PhysicalOperator &PlanUpdate(ClientContext &context, PhysicalPlanGenerator &planner, LogicalUpdate &op);
 
     unique_ptr<LogicalOperator> BindCreateIndex(Binder &binder, CreateStatement &stmt, TableCatalogEntry &table,
                                                 unique_ptr<LogicalOperator> plan) override;

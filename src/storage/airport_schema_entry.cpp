@@ -188,14 +188,13 @@ namespace duckdb
     }
   }
 
-  optional_ptr<CatalogEntry> AirportSchemaEntry::GetEntry(CatalogTransaction transaction, CatalogType type,
-                                                          const string &name)
+  optional_ptr<CatalogEntry> AirportSchemaEntry::LookupEntry(CatalogTransaction transaction, const EntryLookupInfo &lookup_info)
   {
-    if (!CatalogTypeIsSupported(type))
+    if (!CatalogTypeIsSupported(lookup_info.GetCatalogType()))
     {
       return nullptr;
     }
-    return GetCatalogSet(type).GetEntry(transaction.GetContext(), name);
+    return GetCatalogSet(lookup_info.GetCatalogType()).GetEntry(transaction.GetContext(), lookup_info.GetEntryName());
   }
 
   AirportCatalogSet &AirportSchemaEntry::GetCatalogSet(CatalogType type)

@@ -111,9 +111,11 @@ namespace duckdb
                  { callback(schema.Cast<AirportSchemaEntry>()); });
   }
 
-  optional_ptr<SchemaCatalogEntry> AirportCatalog::GetSchema(CatalogTransaction transaction, const string &schema_name,
-                                                             OnEntryNotFound if_not_found, QueryErrorContext error_context)
+  optional_ptr<SchemaCatalogEntry> AirportCatalog::LookupSchema(CatalogTransaction transaction,
+                                                                const EntryLookupInfo &schema_lookup,
+                                                                OnEntryNotFound if_not_found)
   {
+    auto &schema_name = schema_lookup.GetEntryName();
     if (schema_name == DEFAULT_SCHEMA)
     {
       if (if_not_found == OnEntryNotFound::RETURN_NULL)
@@ -121,12 +123,12 @@ namespace duckdb
         // There really isn't a default way to handle this, so just return null.
         return nullptr;
       }
-      throw BinderException("Schema with name \"%s\" not found", schema_name);
+      throw CatalogException(schema_lookup.GetErrorContext(), "Schema with name \"%s\" not found", schema_name);
     }
     auto entry = schemas.GetEntry(transaction.GetContext(), schema_name);
     if (!entry && if_not_found != OnEntryNotFound::RETURN_NULL)
     {
-      throw BinderException("Schema with name \"%s\" not found", schema_name);
+      throw CatalogException(schema_lookup.GetErrorContext(), "Schema with name \"%s\" not found", schema_name);
     }
     return reinterpret_cast<SchemaCatalogEntry *>(entry.get());
   }
