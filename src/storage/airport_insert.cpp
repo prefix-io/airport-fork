@@ -50,7 +50,7 @@ namespace duckdb
       : PhysicalOperator(PhysicalOperatorType::CREATE_TABLE_AS, op.types, estimated_cardinality), insert_table(nullptr), schema(&schema),
         info(std::move(info_p)), return_chunk(false)
   {
-    PhysicalInsert::GetInsertInfo(*info, insert_types, bound_defaults);
+    PhysicalInsert::GetInsertInfo(*info, insert_types);
   }
 
   //===--------------------------------------------------------------------===//
