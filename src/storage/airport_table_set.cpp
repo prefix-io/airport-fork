@@ -400,6 +400,7 @@ namespace duckdb
 
     arrow::flight::Action action{"create_table",
                                  arrow::Buffer::FromString(packed_buffer.str())};
+
     std::unique_ptr<arrow::flight::ResultStream> action_results;
     AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(action_results, flight_client->DoAction(call_options, action), server_location, "airport_create_table");
 
@@ -420,9 +421,18 @@ namespace duckdb
     AIRPORT_ARROW_ASSERT_OK_LOCATION(action_results->Drain(), server_location, "");
 
     // FIXME: need to extract the rowid type from the schema, I think there is function that does this.
+
+    std::shared_ptr<arrow::Schema> info_schema;
+    arrow::ipc::DictionaryMemo dictionary_memo;
+    AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION_DESCRIPTOR(info_schema,
+                                                       flight_info->GetSchema(&dictionary_memo),
+                                                       server_location,
+                                                       flight_info->descriptor(),
+                                                       "");
+
     auto rowid_type = AirportAPI::GetRowIdType(
         context,
-        flight_info,
+        info_schema,
         server_location,
         flight_info->descriptor());
 
