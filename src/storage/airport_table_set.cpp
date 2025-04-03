@@ -395,11 +395,7 @@ namespace duckdb
       }
     }
 
-    std::stringstream packed_buffer;
-    msgpack::pack(packed_buffer, params);
-
-    arrow::flight::Action action{"create_table",
-                                 arrow::Buffer::FromString(packed_buffer.str())};
+    AIRPORT_MSGPACK_ACTION_SINGLE_PARAMETER(action, "create_table", params);
 
     std::unique_ptr<arrow::flight::ResultStream> action_results;
     AIRPORT_FLIGHT_ASSIGN_OR_RAISE_LOCATION(action_results, flight_client->DoAction(call_options, action), server_location, "airport_create_table");
