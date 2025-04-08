@@ -298,8 +298,7 @@ namespace duckdb
                        not_null_constraints, unique_constraints, check_constraints)
   };
 
-  optional_ptr<CatalogEntry>
-  AirportTableSet::CreateTable(ClientContext &context, BoundCreateTableInfo &info)
+  optional_ptr<CatalogEntry> AirportTableSet::CreateTable(ClientContext &context, BoundCreateTableInfo &info)
   {
     auto &airport_catalog = catalog.Cast<AirportCatalog>();
     auto &base = info.base->Cast<CreateTableInfo>();
@@ -430,6 +429,7 @@ namespace duckdb
         server_location,
         flight_info->descriptor());
 
+    // FIXME: check to make sure the rowid column is the correct type, this seems to be missing here.
     auto table_entry = make_uniq<AirportTableEntry>(catalog, this->schema, base, rowid_type);
 
     AirportSerializedFlightAppMetadata created_table_metadata;
