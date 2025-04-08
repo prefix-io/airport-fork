@@ -193,7 +193,6 @@ namespace duckdb
     auto &lstate = input.local_state.Cast<AirportUpdateLocalState>();
 
     DataChunk &send_update_chunk = lstate.read_from_flight_chunk;
-    DataChunk &mock_chunk = lstate.table_mock_chunk;
 
     chunk.Flatten();
     lstate.default_executor.SetChunk(chunk);
@@ -275,6 +274,7 @@ namespace duckdb
                                           data.lines_read - output_size,
                                           false);
         lstate.read_from_flight_chunk.Verify();
+        DataChunk &mock_chunk = lstate.table_mock_chunk;
 
         mock_chunk.SetCardinality(state.chunk->arrow_array.length);
         for (idx_t i = 0; i < columns.size(); i++)
@@ -409,7 +409,7 @@ namespace duckdb
                                                PhysicalOperator &plan)
   {
     auto &airport_table = op.table.Cast<AirportTableEntry>();
-    for (auto &expr : op.expressions)
+    for (const auto &expr : op.expressions)
     {
       if (expr->type == ExpressionType::VALUE_DEFAULT)
       {
