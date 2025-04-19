@@ -28,14 +28,14 @@ namespace duckdb
       return create_info->table;
     }
 
-    unique_ptr<CreateTableInfo> create_info;
+    const unique_ptr<CreateTableInfo> create_info;
   };
 
   class AirportTableEntry : public TableCatalogEntry
   {
   public:
-    AirportTableEntry(Catalog &catalog, SchemaCatalogEntry &schema, CreateTableInfo &info, LogicalType rowid_type);
-    AirportTableEntry(Catalog &catalog, SchemaCatalogEntry &schema, AirportTableInfo &info, LogicalType rowid_type);
+    AirportTableEntry(Catalog &catalog, SchemaCatalogEntry &schema, CreateTableInfo &info, const LogicalType &rowid_type);
+    AirportTableEntry(Catalog &catalog, SchemaCatalogEntry &schema, AirportTableInfo &info, const LogicalType &rowid_type);
 
     unique_ptr<AirportAPITable> table_data;
 
@@ -46,10 +46,12 @@ namespace duckdb
       {
         virtual_columns.insert(make_pair(COLUMN_IDENTIFIER_ROW_ID, TableColumn("rowid", rowid_type)));
       }
+      // virtual_columns.insert(make_pair(COLUMN_IDENTIFIER_EMPTY, TableColumn("", LogicalType::BOOLEAN)));
+
       return virtual_columns;
     }
 
-    LogicalType GetRowIdType() const
+    const LogicalType &GetRowIdType() const
     {
       return rowid_type;
     }
@@ -65,7 +67,7 @@ namespace duckdb
     //                            ClientContext &context) override;
   private:
     //! A logical type for the rowid of this table.
-    LogicalType rowid_type = LogicalType(LogicalType::ROW_TYPE);
+    const LogicalType rowid_type;
 
     Catalog &catalog;
   };
