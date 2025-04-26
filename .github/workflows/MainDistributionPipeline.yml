@@ -17,11 +17,11 @@ jobs:
   duckdb-stable-build:
     name: Build extension binaries
 #    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main#    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
-    uses: rustyconover/extension-ci-tools/.github/workflows/_extension_distribution.yml@39e6324541a8a3071d62a3dded30215b56e00503
+    uses: rustyconover/extension-ci-tools/.github/workflows/_extension_distribution.yml@a90db7b811b64aac3a412830cd992c6fa06e2a7f
     with:
       duckdb_version: main
       extension_name: airport
-      ci_tools_version: 39e6324541a8a3071d62a3dded30215b56e00503
+      ci_tools_version: a90db7b811b64aac3a412830cd992c6fa06e2a7f
       extra_toolchains: parser_tools
       exclude_archs: "wasm_mvp;wasm_eh;wasm_threads;"
 
