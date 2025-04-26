@@ -17,7 +17,7 @@ jobs:
   duckdb-stable-build:
     name: Build extension binaries
 #    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main#    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
-    uses: rustyconover/extension-ci-tools/.github/workflows/_extension_distribution.yml@fix_use_s3_vcpkg_cache
+    uses: rustyconover/extension-ci-tools/.github/workflows/_extension_distribution.yml@39e6324541a8a3071d62a3dded30215b56e00503
     with:
       duckdb_version: main
       extension_name: airport
