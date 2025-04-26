@@ -588,6 +588,7 @@ namespace duckdb
         descriptor.SerializeToString(),
         server_location,
         "get_flight_endpoints serialize flight descriptor");
+
     endpoints_request.parameters.json_filters = json_filters;
     endpoints_request.parameters.column_ids = column_ids;
 
