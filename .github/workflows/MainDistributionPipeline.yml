@@ -24,6 +24,9 @@ jobs:
       ci_tools_version: ada2b6449b13a4c0913ef6674464cd91e75d3008
       extra_toolchains: parser_tools
       exclude_archs: "wasm_mvp;wasm_eh;wasm_threads;"
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   # duckdb-stable-deploy:
   #   name: Deploy extension binaries
