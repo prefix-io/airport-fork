@@ -1,4 +1,9 @@
 {
+  "vcpkg-configuration": {
+    "overlay-ports": [
+      "./extension-ci-tools/vcpkg_ports"
+    ]
+  },
   "dependencies": [
     {
       "name": "msgpack"
