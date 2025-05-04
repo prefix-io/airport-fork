@@ -341,10 +341,10 @@ namespace duckdb
 
   void AirportAddListFlightsFunction(DatabaseInstance &instance)
   {
-    auto list_flights_functions = TableFunctionSet("airport_list_flights");
+    auto list_flights_functions = TableFunctionSet("airport_flights");
 
     auto with_criteria = TableFunction(
-        "airport_list_flights",
+        "airport_flights",
         {LogicalType::VARCHAR, LogicalType::VARCHAR},
         list_flights,
         list_flights_bind,
@@ -358,7 +358,7 @@ namespace duckdb
     list_flights_functions.AddFunction(with_criteria);
 
     auto without_criteria = TableFunction(
-        "airport_list_flights",
+        "airport_flights",
         {LogicalType::VARCHAR},
         list_flights,
         list_flights_bind,

@@ -14,7 +14,7 @@ Arrow Flight is an RPC framework for high-performance data services based on [Ap
 
 ### Listing Flights
 
-```airport_list_flights(location, criteria, auth_token="token_value", secret="secret_name")```
+```airport_flights(location, criteria, auth_token="token_value", secret="secret_name")```
 
 __Description:__ This function returns a list of Arrow Flights that are available at a particular endpoint.
 
@@ -35,7 +35,7 @@ __Description:__ This function returns a list of Arrow Flights that are availabl
 
 
 ```sql
-> select * from airport_list_flights('http://127.0.0.1:8815', null);
+> select * from airport_flights('http://127.0.0.1:8815', null);
 
 flight_descriptor = [uploaded.parquet]
          endpoint = [{'ticket': uploaded.parquet, 'location': [grpc://0.0.0.0:8815], 'expiration_time': NULL, 'app_metadata': }]
@@ -55,7 +55,7 @@ The `airport-duckdb-json-filters` header is sent on the GRPC requests.  The head
 To illustrate this through an example:
 
 ```sql
-select * from airport_list_flights('grpc://localhost:8815/', null) where total_bytes = 5;
+select * from airport_flights('grpc://localhost:8815/', null) where total_bytes = 5;
 ```
 
 The GRPC header `airport-duckdb-json-filters` will be set to

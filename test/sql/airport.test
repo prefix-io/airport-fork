@@ -4,9 +4,9 @@
 
 # Before we load the extension, this will fail
 statement error
-SELECT * from airport_list_flights('hello');
+SELECT * from airport_flights('hello');
 ----
-Catalog Error: Table Function with name airport_list_flights does not exist!
+Catalog Error: Table Function with name airport_flights does not exist!
 
 # Require statement will ensure this test is run with this extension loaded
 require airport
