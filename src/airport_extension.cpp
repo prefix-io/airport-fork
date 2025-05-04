@@ -116,15 +116,31 @@ namespace duckdb
         }
     };
 
+    inline void get_user_agent(DataChunk &args, ExpressionState &state, Vector &result)
+    {
+        D_ASSERT(args.ColumnCount() == 0);
+        Value val(airport_user_agent());
+        result.Reference(val);
+    }
+
+    void AirportAddUserAgentFunction(DatabaseInstance &instance)
+    {
+        ExtensionUtil::RegisterFunction(
+            instance,
+            ScalarFunction(
+                "airport_user_agent",
+                {},
+                LogicalType::VARCHAR,
+                get_user_agent));
+    }
+
     static void LoadInternal(DatabaseInstance &instance)
     {
         curl_global_init(CURL_GLOBAL_DEFAULT);
 
-        // We could add some parameter here for authentication
-        // and extra headers.
         AirportAddListFlightsFunction(instance);
-
         AirportAddTakeFlightFunction(instance);
+        AirportAddUserAgentFunction(instance);
 
         SecretType secret_type;
         secret_type.name = "airport";
