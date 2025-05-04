@@ -1005,7 +1005,7 @@ namespace duckdb
     return AirportArrowScanInitLocalInternal(context.client, input, global_state_p);
   }
 
-  void AddTakeFlightFunction(DatabaseInstance &instance)
+  void AirportAddTakeFlightFunction(DatabaseInstance &instance)
   {
 
     auto take_flight_function_set = TableFunctionSet("airport_take_flight");

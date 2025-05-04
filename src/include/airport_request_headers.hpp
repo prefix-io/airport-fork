@@ -7,6 +7,7 @@
 
 namespace duckdb
 {
+  std::string airport_user_agent();
   void airport_add_standard_headers(arrow::flight::FlightCallOptions &options, const std::string &server_location);
   void airport_add_authorization_header(arrow::flight::FlightCallOptions &options, const std::string &auth_token);
   void airport_add_flight_path_header(arrow::flight::FlightCallOptions &options,

@@ -339,7 +339,7 @@ namespace duckdb
     bind_data.json_filters = json_result;
   }
 
-  void AddListFlightsFunction(DatabaseInstance &instance)
+  void AirportAddListFlightsFunction(DatabaseInstance &instance)
   {
     auto list_flights_functions = TableFunctionSet("airport_list_flights");
 

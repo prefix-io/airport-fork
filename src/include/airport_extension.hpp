@@ -65,8 +65,8 @@ namespace duckdb
 		std::string Version() const override;
 	};
 
-	void AddListFlightsFunction(DatabaseInstance &instance);
+	void AirportAddListFlightsFunction(DatabaseInstance &instance);
 
-	void AddTakeFlightFunction(DatabaseInstance &instance);
+	void AirportAddTakeFlightFunction(DatabaseInstance &instance);
 
 } // namespace duckdb

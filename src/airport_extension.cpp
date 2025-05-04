@@ -50,7 +50,7 @@ namespace duckdb
         return result;
     }
 
-    static void SetAirportSecretParameters(CreateSecretFunction &function)
+    static void AirportSetSecretParameters(CreateSecretFunction &function)
     {
         function.named_parameters["auth_token"] = LogicalType::VARCHAR;
     }
@@ -122,9 +122,9 @@ namespace duckdb
 
         // We could add some parameter here for authentication
         // and extra headers.
-        AddListFlightsFunction(instance);
+        AirportAddListFlightsFunction(instance);
 
-        AddTakeFlightFunction(instance);
+        AirportAddTakeFlightFunction(instance);
 
         SecretType secret_type;
         secret_type.name = "airport";
@@ -134,7 +134,7 @@ namespace duckdb
         ExtensionUtil::RegisterSecretType(instance, secret_type);
 
         CreateSecretFunction airport_secret_function = {"airport", "config", CreateAirportSecretFunction};
-        SetAirportSecretParameters(airport_secret_function);
+        AirportSetSecretParameters(airport_secret_function);
         ExtensionUtil::RegisterFunction(instance, airport_secret_function);
 
         auto &config = DBConfig::GetConfig(instance);
@@ -156,11 +156,7 @@ namespace duckdb
 
     std::string AirportExtension::Version() const
     {
-#ifdef EXT_VERSION_airport
-        return EXT_VERSION_airport;
-#else
-        return "";
-#endif
+        return "user-agent=" + airport_user_agent() + ",client=2025050401";
     }
 
 } // namespace duckdb
