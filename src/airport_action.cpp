@@ -134,7 +134,7 @@ namespace duckdb
                                          parameter,
                                          user_supplied_headers);
 
-    return_types.emplace_back(LogicalType::BLOB);
+    return_types.emplace_back(LogicalType(LogicalTypeId::BLOB));
     names.emplace_back("result");
 
     return ret;
