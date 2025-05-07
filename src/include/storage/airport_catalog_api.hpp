@@ -48,7 +48,7 @@ namespace duckdb
   struct AirportSerializedSchema
   {
     // The name of the schema
-    std::string schema;
+    std::string name;
     // The description of the schema
     std::string description;
     // Any tags to apply to the schema.
@@ -56,7 +56,7 @@ namespace duckdb
     // The contents of the schema itself.
     AirportSerializedContentsWithSHA256Hash contents;
 
-    MSGPACK_DEFINE_MAP(schema, description, tags, contents)
+    MSGPACK_DEFINE_MAP(name, description, tags, contents)
   };
 
   struct AirportGetCatalogVersionResult

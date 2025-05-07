@@ -680,7 +680,7 @@ namespace duckdb
       auto schema_contents = std::make_shared<AirportSerializedContentsWithSHA256Hash>(schema.contents);
       result->schemas.push_back(AirportAPISchema(
           catalog_name,
-          schema.schema,
+          schema.name,
           schema.description,
           schema.tags,
           schema_contents));
