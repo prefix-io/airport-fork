@@ -63,7 +63,7 @@ namespace duckdb
   {
     uint64_t catalog_version;
     bool is_fixed;
-    MSGPACK_DEFINE(catalog_version, is_fixed)
+    MSGPACK_DEFINE_MAP(catalog_version, is_fixed)
   };
 
   struct AirportSerializedCatalogRoot

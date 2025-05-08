@@ -26,7 +26,13 @@ namespace duckdb
   struct GetTransactionIdentifierResult
   {
     std::optional<std::string> identifier;
-    MSGPACK_DEFINE(identifier)
+    MSGPACK_DEFINE_MAP(identifier)
+  };
+
+  struct AirportCreateTransactionParameters
+  {
+    std::string catalog_name;
+    MSGPACK_DEFINE_MAP(catalog_name)
   };
 
   std::optional<string> AirportTransaction::GetTransactionIdentifier()
@@ -38,7 +44,9 @@ namespace duckdb
     airport_add_standard_headers(call_options, attach_parameters->location());
     airport_add_authorization_header(call_options, attach_parameters->auth_token());
 
-    arrow::flight::Action action{"create_transaction", arrow::Buffer::FromString(catalog_name)};
+    AirportCreateTransactionParameters params;
+    params.catalog_name = catalog_name;
+    AIRPORT_MSGPACK_ACTION_SINGLE_PARAMETER(action, "column_statistics", params);
 
     AIRPORT_ASSIGN_OR_RAISE_LOCATION(auto action_results,
                                      flight_client->DoAction(call_options, action),

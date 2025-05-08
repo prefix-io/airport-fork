@@ -670,7 +670,7 @@ namespace duckdb
                            catalog_root,
                            decompressed_schema_data,
                            server_location,
-                           "Failed to parse MsgPack object describing catalog root");
+                           "Failed to unpack msgpack AirportSerializedCatalogRoot.");
 
     result->source = catalog_root.contents;
     result->version_info = catalog_root.version_info;

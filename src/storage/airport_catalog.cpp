@@ -34,6 +34,12 @@ namespace duckdb
   {
   }
 
+  struct AirportGetCatalogVersionParams
+  {
+    string catalog_name;
+    MSGPACK_DEFINE_MAP(catalog_name);
+  };
+
   optional_idx AirportCatalog::GetCatalogVersion(ClientContext &context)
   {
     if (loaded_catalog_version.has_value() && loaded_catalog_version.value().is_fixed)
@@ -46,9 +52,13 @@ namespace duckdb
     airport_add_authorization_header(call_options, attach_parameters_->auth_token());
 
     // Might want to cache this though if a server declares the server catalog will not change.
-    arrow::flight::Action action{"catalog_version", arrow::Buffer::FromString(internal_name_)};
 
     auto &server_location = attach_parameters_->location();
+
+    AirportGetCatalogVersionParams params;
+    params.catalog_name = internal_name_;
+
+    AIRPORT_MSGPACK_ACTION_SINGLE_PARAMETER(action, "catalog_version", params);
 
     AIRPORT_ASSIGN_OR_RAISE_LOCATION(auto action_results,
                                      flight_client_->DoAction(call_options, action),
