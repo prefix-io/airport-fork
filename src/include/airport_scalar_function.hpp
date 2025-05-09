@@ -20,23 +20,31 @@ namespace duckdb
     const string function_name_;
     const std::shared_ptr<arrow::Schema> output_schema_;
     const std::shared_ptr<arrow::Schema> input_schema_;
+    Catalog &catalog_;
 
   public:
     AirportScalarFunctionInfo(
         const string &name,
         const AirportLocationDescriptor &location,
         const std::shared_ptr<arrow::Schema> &output_schema,
-        const std::shared_ptr<arrow::Schema> &input_schema)
+        const std::shared_ptr<arrow::Schema> &input_schema,
+        Catalog &catalog)
         : ScalarFunctionInfo(),
           AirportLocationDescriptor(location),
           function_name_(name),
           output_schema_(output_schema),
-          input_schema_(input_schema)
+          input_schema_(input_schema),
+          catalog_(catalog)
     {
     }
 
     ~AirportScalarFunctionInfo() override
     {
+    }
+
+    Catalog &catalog() const
+    {
+      return catalog_;
     }
 
     const string &function_name() const

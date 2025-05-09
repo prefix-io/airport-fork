@@ -15,6 +15,7 @@
 #include "duckdb/planner/expression/bound_function_expression.hpp"
 #include "airport_location_descriptor.hpp"
 #include "airport_schema_utils.h"
+#include "storage/airport_transaction.hpp"
 #include <numeric>
 
 namespace duckdb
@@ -32,10 +33,12 @@ namespace duckdb
     explicit AirportScalarFunctionLocalState(ClientContext &context,
                                              const AirportLocationDescriptor &location_descriptor,
                                              const std::shared_ptr<arrow::Schema> &function_output_schema,
-                                             const std::shared_ptr<arrow::Schema> &function_input_schema)
+                                             const std::shared_ptr<arrow::Schema> &function_input_schema,
+                                             const std::optional<std::string> &transaction_id)
         : AirportLocationDescriptor(location_descriptor),
           function_output_schema_(function_output_schema),
-          function_input_schema_(function_input_schema)
+          function_input_schema_(function_input_schema),
+          transaction_id_(transaction_id)
     {
       const auto trace_id = airport_trace_id();
 
@@ -62,6 +65,11 @@ namespace duckdb
 
       // Indicate if the caller is interested in data being returned.
       call_options.headers.emplace_back("return-chunks", "1");
+
+      if (transaction_id)
+      {
+        call_options.headers.emplace_back("airport-transaction-id", *transaction_id);
+      }
 
       airport_add_flight_path_header(call_options, this->descriptor());
 
@@ -164,6 +172,7 @@ namespace duckdb
     const std::shared_ptr<arrow::Schema> function_output_schema_;
     const std::shared_ptr<arrow::Schema> function_input_schema_;
     const unique_ptr<arrow::flight::FlightClient> flight_client_;
+    const std::optional<std::string> transaction_id_;
   };
 
   struct AirportScalarFunctionBindData : public FunctionData
@@ -338,11 +347,14 @@ namespace duckdb
     auto &info = expr.function.function_info->Cast<AirportScalarFunctionInfo>();
     auto &data = bind_data->Cast<AirportScalarFunctionBindData>();
 
+    auto &transaction = AirportTransaction::Get(state.GetContext(), info.catalog());
+
     return make_uniq<AirportScalarFunctionLocalState>(
         state.GetContext(),
         info,
         info.output_schema(),
         // Use this schema that should have the proper types for the any columns.
-        data.input_schema());
+        data.input_schema(),
+        transaction.identifier());
   }
 }

@@ -836,7 +836,8 @@ namespace duckdb
         scalar_func.function_info = make_uniq<AirportScalarFunctionInfo>(function.name(),
                                                                          function,
                                                                          function.schema(),
-                                                                         function.input_schema());
+                                                                         function.input_schema(),
+                                                                         catalog);
 
         flight_func_set.AddFunction(scalar_func);
       }
@@ -845,8 +846,10 @@ namespace duckdb
       info.catalog = pair.first.catalog_name;
       info.schema = pair.first.schema_name;
 
-      auto function_entry = make_uniq_base<StandardEntry, ScalarFunctionCatalogEntry>(catalog, schema,
-                                                                                      info.Cast<CreateScalarFunctionInfo>());
+      auto function_entry = make_uniq_base<StandardEntry, ScalarFunctionCatalogEntry>(
+          catalog,
+          schema,
+          info.Cast<CreateScalarFunctionInfo>());
       CreateEntry(std::move(function_entry));
     }
   }

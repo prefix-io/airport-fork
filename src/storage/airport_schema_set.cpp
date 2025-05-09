@@ -120,7 +120,10 @@ namespace duckdb
 
       // Since these are DuckDB attributes, we need to copy them manually.
       schema_entry->comment = schema.comment();
-      schema_entry->tags = schema.tags();
+      for (auto &tag : schema.tags())
+      {
+        schema_entry->tags[tag.first] = tag.second;
+      }
       // printf("Creating schema %s\n", schema.schema_name.c_str());
       CreateEntry(std::move(schema_entry));
     }
@@ -160,7 +163,10 @@ namespace duckdb
     {
       params.comment = info.comment.ToString();
     }
-    params.tags = info.tags;
+    // for (auto &tag : info.tags())
+    // {
+    //   params.tags[tag.first] = tag.second;
+    // }
 
     auto &server_location = airport_catalog.attach_parameters()->location();
 
