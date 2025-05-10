@@ -208,7 +208,8 @@ namespace duckdb
           reader_(std::move(reader)),
           input_(input)
     {
-      D_ASSERT(reader != nullptr);
+      D_ASSERT(std::holds_alternative<std::shared_ptr<arrow::flight::FlightStreamReader>>(reader_));
+      D_ASSERT(std::get<std::shared_ptr<arrow::flight::FlightStreamReader>>(reader_) != nullptr);
     }
 
     explicit AirportArrowScanLocalState(unique_ptr<ArrowArrayWrapper> current_chunk,

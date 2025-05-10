@@ -349,23 +349,29 @@ namespace duckdb
     {
       state.all_columns.Reset();
       state.all_columns.SetCardinality(output_size);
-      ArrowTableFunction::ArrowToDuckDB(state,
-                                        airport_bind_data.arrow_table.GetColumns(),
-                                        state.all_columns,
-                                        state.lines_read - output_size,
-                                        false,
-                                        airport_bind_data.rowid_column_index);
+      if (output_size > 0)
+      {
+        ArrowTableFunction::ArrowToDuckDB(state,
+                                          airport_bind_data.arrow_table.GetColumns(),
+                                          state.all_columns,
+                                          state.lines_read - output_size,
+                                          false,
+                                          airport_bind_data.rowid_column_index);
+      }
       output.ReferenceColumns(state.all_columns, global_state.projection_ids());
     }
     else
     {
       output.SetCardinality(output_size);
-      ArrowTableFunction::ArrowToDuckDB(state,
-                                        airport_bind_data.arrow_table.GetColumns(),
-                                        output,
-                                        state.lines_read - output_size,
-                                        false,
-                                        airport_bind_data.rowid_column_index);
+      if (output_size > 0)
+      {
+        ArrowTableFunction::ArrowToDuckDB(state,
+                                          airport_bind_data.arrow_table.GetColumns(),
+                                          output,
+                                          state.lines_read - output_size,
+                                          false,
+                                          airport_bind_data.rowid_column_index);
+      }
     }
 
     state.chunk_offset += output.size();
@@ -374,6 +380,10 @@ namespace duckdb
 
   void AirportTakeFlight(ClientContext &context, TableFunctionInput &data_p, DataChunk &output)
   {
+    // All of these should be defined.
+    D_ASSERT(data_p.local_state);
+    D_ASSERT(data_p.global_state);
+    D_ASSERT(data_p.bind_data);
     auto &state = data_p.local_state->Cast<AirportArrowScanLocalState>();
     auto &global_state = data_p.global_state->Cast<AirportArrowScanGlobalState>();
     auto &airport_bind_data = data_p.bind_data->CastNoConst<AirportTakeFlightBindData>();
@@ -975,10 +985,7 @@ namespace duckdb
     auto &global_state = global_state_p->Cast<AirportArrowScanGlobalState>();
 
     auto &endpoint_opt = global_state.GetNextEndpoint();
-    if (!endpoint_opt)
-    {
-      return nullptr;
-    }
+    D_ASSERT(endpoint_opt != std::nullopt);
 
     auto current_chunk = make_uniq<ArrowArrayWrapper>();
     auto result = make_uniq<AirportArrowScanLocalState>(
@@ -986,16 +993,13 @@ namespace duckdb
         context,
         input);
 
-    if (AirportLocalStateProcessEndpoint(context,
-                                         input,
-                                         bind_data,
-                                         global_state,
-                                         *result,
-                                         *endpoint_opt))
-    {
-      return result;
-    }
-    return nullptr;
+    AirportLocalStateProcessEndpoint(context,
+                                     input,
+                                     bind_data,
+                                     global_state,
+                                     *result,
+                                     *endpoint_opt);
+    return result;
   }
 
   unique_ptr<LocalTableFunctionState> AirportArrowScanInitLocal(ExecutionContext &context,

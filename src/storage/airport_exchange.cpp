@@ -94,6 +94,8 @@ namespace duckdb
         airport_table.table_data,
         "Begin schema");
 
+    D_ASSERT(exchange_result.reader != nullptr);
+    D_ASSERT(exchange_result.writer != nullptr);
     // Now that there is a reader stream and a writer stream, we want to reuse the Arrow
     // scan code as much as possible, but the problem is it assumes its being called as
     // part of a table returning function, with the life cycle of bind, init global, init local
@@ -193,11 +195,13 @@ namespace duckdb
 
     // Local init.
 
+    D_ASSERT(exchange_result.reader != nullptr);
     auto current_chunk = make_uniq<ArrowArrayWrapper>();
     auto scan_local_state = make_uniq<AirportArrowScanLocalState>(
         std::move(current_chunk),
         context,
-        std::move(exchange_result.reader), fake_init_input);
+        std::move(exchange_result.reader),
+        fake_init_input);
     scan_local_state->set_stream(AirportProduceArrowScan(
         scan_bind_data->CastNoConst<AirportTakeFlightBindData>(),
         column_ids,
