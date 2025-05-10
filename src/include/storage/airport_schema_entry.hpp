@@ -40,7 +40,7 @@ namespace duckdb
 
     optional_ptr<CatalogEntry> LookupEntry(CatalogTransaction transaction, const EntryLookupInfo &lookup_info) override;
 
-    std::shared_ptr<AirportSerializedContentsWithSHA256Hash> serialized_source() const
+    const AirportSerializedContentsWithSHA256Hash &serialized_source() const
     {
       return schema_data_.source();
     }

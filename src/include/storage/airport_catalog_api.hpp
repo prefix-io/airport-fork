@@ -340,7 +340,7 @@ namespace duckdb
                      const string &schema_name,
                      const string &comment,
                      const unordered_map<string, string> &tags,
-                     const std::shared_ptr<AirportSerializedContentsWithSHA256Hash> &source)
+                     const AirportSerializedContentsWithSHA256Hash &source)
         : catalog_name_(catalog_name),
           schema_name_(schema_name),
           comment_(comment),
@@ -369,7 +369,7 @@ namespace duckdb
       return tags_;
     }
 
-    const std::shared_ptr<AirportSerializedContentsWithSHA256Hash> &source() const
+    const AirportSerializedContentsWithSHA256Hash &source() const
     {
       return source_;
     }
@@ -379,7 +379,7 @@ namespace duckdb
     const string schema_name_;
     const string comment_;
     const unordered_map<string, string> tags_;
-    const std::shared_ptr<AirportSerializedContentsWithSHA256Hash> source_;
+    const AirportSerializedContentsWithSHA256Hash source_;
   };
 
   struct AirportSchemaCollection
@@ -407,7 +407,7 @@ namespace duckdb
     static unique_ptr<AirportSchemaContents> GetSchemaItems(CURL *curl,
                                                             const string &catalog,
                                                             const string &schema,
-                                                            std::shared_ptr<const AirportSerializedContentsWithSHA256Hash> source,
+                                                            const AirportSerializedContentsWithSHA256Hash &source,
                                                             const string &cache_base_dir,
                                                             std::shared_ptr<AirportAttachParameters> credentials);
     static unique_ptr<AirportSchemaCollection> GetSchemas(const string &catalog,

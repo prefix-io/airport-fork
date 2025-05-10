@@ -409,7 +409,10 @@ namespace duckdb
     std::string_view serialized_flight_info(reinterpret_cast<const char *>(flight_info_buffer->body->data()), flight_info_buffer->body->size());
 
     // Now how to we deserialize the flight info from that buffer...
-    AIRPORT_ASSIGN_OR_RAISE_LOCATION(auto flight_info, arrow::flight::FlightInfo::Deserialize(serialized_flight_info), server_location, "");
+    AIRPORT_ASSIGN_OR_RAISE_LOCATION(auto flight_info,
+                                     arrow::flight::FlightInfo::Deserialize(serialized_flight_info),
+                                     server_location,
+                                     "Error deserializing flight info from create_table RPC");
 
     // We aren't interested in anything after the first result.
     AIRPORT_ARROW_ASSERT_OK_LOCATION(action_results->Drain(), server_location, "");

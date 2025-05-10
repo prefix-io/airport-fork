@@ -178,7 +178,20 @@ namespace duckdb
                                      server_location,
                                      "airport_create_schema");
 
-    // We aren't interested in anything from this call.
+    // We need to load the serialized scheam ifnormation from the server call.
+    AIRPORT_ASSIGN_OR_RAISE_LOCATION(auto msgpack_serialized_response, action_results->Next(), server_location, "");
+
+    if (msgpack_serialized_response == nullptr)
+    {
+      throw AirportFlightException(server_location, "Failed to obtain schema data from Arrow Flight create_schema RPC");
+    }
+
+    const auto &body_buffer = msgpack_serialized_response.get()->body;
+    AIRPORT_MSGPACK_UNPACK(AirportSerializedContentsWithSHA256Hash, contents,
+                           (*body_buffer),
+                           server_location,
+                           "File to parse msgpack encoded object from create_schema response");
+
     AIRPORT_ARROW_ASSERT_OK_LOCATION(action_results->Drain(), server_location, "");
 
     unordered_map<string, string> empty;
@@ -187,7 +200,8 @@ namespace duckdb
         info.schema,
         "",
         empty,
-        nullptr);
+        contents);
+
     string cache_path = DuckDBHomeDirectory(context);
 
     auto schema_entry = make_uniq<AirportSchemaEntry>(catalog, info, connection_pool, cache_path, real_entry);

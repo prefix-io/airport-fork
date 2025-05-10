@@ -360,23 +360,23 @@ namespace duckdb
 
   // Function to handle caching
   static std::pair<long, std::string> getCachedRequestData(CURL *curl,
-                                                           std::shared_ptr<const AirportSerializedContentsWithSHA256Hash> source,
+                                                           const AirportSerializedContentsWithSHA256Hash &source,
                                                            const string &baseDir)
   {
-    if (source->sha256.empty())
+    if (source.sha256.empty())
     {
       // Can't cache anything since we don't know the expected sha256 value.
       // and the caching is based on the sha256 values.
       //
       // So if there was inline content supplied use that and fake that it was
       // retrieved from a server.
-      if (source->serialized.has_value())
+      if (source.serialized.has_value())
       {
-        return std::make_pair(200, source->serialized.value());
+        return std::make_pair(200, source.serialized.value());
       }
-      else if (source->url.has_value())
+      else if (source.url.has_value())
       {
-        return GetRequest(curl, source->url.value(), source->sha256);
+        return GetRequest(curl, source.url.value(), source.sha256);
       }
       else
       {
@@ -386,13 +386,13 @@ namespace duckdb
 
     // If the user supplied an inline serialized value, check if the sha256 matches, if so
     // use it otherwise fall abck to the url
-    if (source->serialized.has_value())
+    if (source.serialized.has_value())
     {
-      if (SHA256ForString(source->serialized.value()) == source->sha256)
+      if (SHA256ForString(source.serialized.value()) == source.sha256)
       {
-        return std::make_pair(200, source->serialized.value());
+        return std::make_pair(200, source.serialized.value());
       }
-      if (!source->url.has_value())
+      if (!source.url.has_value())
       {
         throw IOException("SHA256 mismatch for inline serialized data and URL is empty");
       }
@@ -400,7 +400,7 @@ namespace duckdb
 
     auto fs = FileSystem::CreateLocal();
 
-    auto paths = GetCachePath(*fs, source->sha256, baseDir);
+    auto paths = GetCachePath(*fs, source.sha256, baseDir);
 
     // Check if data is in cache
     if (fs->FileExists(paths.second))
@@ -410,9 +410,9 @@ namespace duckdb
       {
         // Verify that the SHA256 matches the returned data, don't allow a corrupted filesystem
         // to affect things.
-        if (!source->sha256.empty() && SHA256ForString(cachedData) != source->sha256)
+        if (!source.sha256.empty() && SHA256ForString(cachedData) != source.sha256)
         {
-          throw IOException("SHA256 mismatch for URL: %s from cached data at %s, check for cache corruption", source->url.value(), paths.second.c_str());
+          throw IOException("SHA256 mismatch for URL: %s from cached data at %s, check for cache corruption", source.url.value(), paths.second.c_str());
         }
         return std::make_pair(200, cachedData);
       }
@@ -421,7 +421,7 @@ namespace duckdb
     // I know this doesn't work for zero byte cached responses, its okay.
 
     // Data not in cache, fetch it
-    auto get_result = GetRequest(curl, source->url.value(), source->sha256);
+    auto get_result = GetRequest(curl, source.url.value(), source.sha256);
 
     if (get_result.first != 200)
     {
@@ -496,10 +496,11 @@ namespace duckdb
   AirportAPI::GetSchemaItems(CURL *curl,
                              const string &catalog,
                              const string &schema,
-                             std::shared_ptr<const AirportSerializedContentsWithSHA256Hash> source,
+                             const AirportSerializedContentsWithSHA256Hash &source,
                              const string &cache_base_dir,
                              std::shared_ptr<AirportAttachParameters> credentials)
   {
+
     auto contents = make_uniq<AirportSchemaContents>();
 
     const auto &server_location = credentials->location();
@@ -511,16 +512,16 @@ namespace duckdb
     //
     // this is still a bit messy.
     if (
-        source->url.has_value() ||
-        source->serialized.has_value() ||
-        !source->sha256.empty())
+        source.url.has_value() ||
+        source.serialized.has_value() ||
+        !source.sha256.empty())
     {
       string url_contents;
       auto get_response = getCachedRequestData(curl, source, cache_base_dir);
 
       if (get_response.first != 200)
       {
-        throw IOException("Failed to get Airport schema contents from URL: %s http response code %ld", source->url.value(), get_response.first);
+        throw IOException("Failed to get Airport schema contents from URL: %s http response code %ld", source.url.value(), get_response.first);
       }
       url_contents = get_response.second;
 
@@ -677,13 +678,12 @@ namespace duckdb
 
     for (auto &schema : catalog_root.schemas)
     {
-      auto schema_contents = std::make_shared<AirportSerializedContentsWithSHA256Hash>(schema.contents);
       result->schemas.push_back(AirportAPISchema(
           catalog_name,
           schema.name,
           schema.description,
           schema.tags,
-          schema_contents));
+          schema.contents));
     }
 
     AIRPORT_ARROW_ASSERT_OK_LOCATION(action_results->Drain(), server_location, "");

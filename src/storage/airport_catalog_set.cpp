@@ -96,7 +96,9 @@ namespace duckdb
 
     AIRPORT_ARROW_ASSERT_OK_LOCATION(action_results->Drain(), server_location, "");
 
-    entries.erase(info.name);
+    D_ASSERT(entries.find(info.name) != entries.end());
+
+    EraseEntryInternal(info.name);
   }
 
   void AirportCatalogSet::EraseEntryInternal(const string &name)
