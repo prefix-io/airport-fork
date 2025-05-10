@@ -46,7 +46,7 @@ namespace duckdb
 
     AirportCreateTransactionParameters params;
     params.catalog_name = catalog_name;
-    AIRPORT_MSGPACK_ACTION_SINGLE_PARAMETER(action, "column_statistics", params);
+    AIRPORT_MSGPACK_ACTION_SINGLE_PARAMETER(action, "create_transaction", params);
 
     AIRPORT_ASSIGN_OR_RAISE_LOCATION(auto action_results,
                                      flight_client->DoAction(call_options, action),

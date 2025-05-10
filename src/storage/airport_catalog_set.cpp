@@ -65,7 +65,7 @@ namespace duckdb
     DropItemActionParameters params;
     params.catalog_name = info.catalog;
     params.schema_name = info.schema;
-    params.name = (info.type == CatalogType::TABLE_ENTRY) ? info.name : "";
+    params.name = info.name;
     params.ignore_not_found = (info.if_not_found == OnEntryNotFound::RETURN_NULL) ? true : false;
 
     std::string action_type;
