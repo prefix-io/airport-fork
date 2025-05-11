@@ -1,7 +1,6 @@
+#pragma once
 #include "airport_extension.hpp"
 #include "duckdb.hpp"
-
-#pragma once
 
 namespace duckdb
 {

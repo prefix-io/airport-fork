@@ -14,7 +14,7 @@
 #include "storage/airport_exchange.hpp"
 #include "duckdb/planner/expression/bound_function_expression.hpp"
 #include "airport_location_descriptor.hpp"
-#include "airport_schema_utils.h"
+#include "airport_schema_utils.hpp"
 #include "storage/airport_transaction.hpp"
 #include <numeric>
 

@@ -23,6 +23,7 @@
 #include "airport_secrets.hpp"
 #include "airport_request_headers.hpp"
 #include "duckdb/common/arrow/schema_metadata.hpp"
+#include "airport_schema_utils.hpp"
 
 namespace flight = arrow::flight;
 
@@ -612,15 +613,10 @@ namespace duckdb
         throw InvalidInputException("airport_take_flight: released schema passed");
       }
 
-      if (schema_child.metadata != nullptr)
+      if (AirportFieldMetadataIsRowId(schema_child.metadata))
       {
-        auto column_metadata = ArrowSchemaMetadata(schema_child.metadata);
-        auto comment = column_metadata.GetOption("is_rowid");
-        if (!comment.empty())
-        {
-          auto arrow_type = ArrowType::GetArrowLogicalType(config, schema_child);
-          return arrow_type->GetDuckType();
-        }
+        auto arrow_type = ArrowType::GetArrowLogicalType(config, schema_child);
+        return arrow_type->GetDuckType();
       }
     }
     return LogicalType::SQLNULL;

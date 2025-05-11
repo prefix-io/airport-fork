@@ -7,6 +7,21 @@
 namespace duckdb
 {
 
+  bool AirportFieldMetadataIsRowId(const char *metadata)
+  {
+    if (metadata == nullptr)
+    {
+      return false;
+    }
+    ArrowSchemaMetadata column_metadata(metadata);
+    auto comment = column_metadata.GetOption("is_rowid");
+    if (!comment.empty())
+    {
+      return true;
+    }
+    return false;
+  }
+
   void AirportExamineSchema(
       ClientContext &context,
       const ArrowSchemaWrapper &schema_root,
@@ -54,17 +69,12 @@ namespace duckdb
       // Determine if the column is the rowid column by looking at the metadata
       // on the column.
       bool is_rowid_column = false;
-      if (schema.metadata)
+      if (AirportFieldMetadataIsRowId(schema.metadata))
       {
-        ArrowSchemaMetadata column_metadata(schema.metadata);
-
-        if (!column_metadata.GetOption("is_rowid").empty())
+        is_rowid_column = true;
+        if (rowid_column_index)
         {
-          is_rowid_column = true;
-          if (rowid_column_index)
-          {
-            *rowid_column_index = col_idx;
-          }
+          *rowid_column_index = col_idx;
         }
       }
 

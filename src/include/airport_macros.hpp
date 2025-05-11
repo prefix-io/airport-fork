@@ -1,6 +1,6 @@
-#include "airport_flight_exception.hpp"
-
 #pragma once
+
+#include "airport_flight_exception.hpp"
 
 #define AIRPORT_ARROW_ASSERT_OK_LOCATION(expr, location, message)                    \
   for (::arrow::Status _st = ::arrow::internal::GenericToStatus((expr)); !_st.ok();) \

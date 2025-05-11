@@ -5,7 +5,7 @@
 #include "airport_flight_stream.hpp"
 #include "airport_take_flight.hpp"
 #include "airport_table_entry.hpp"
-#include "airport_schema_utils.h"
+#include "airport_schema_utils.hpp"
 
 namespace duckdb
 {

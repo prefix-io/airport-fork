@@ -17,7 +17,8 @@
 #include "airport_flight_stream.hpp"
 #include "airport_take_flight.hpp"
 #include "storage/airport_exchange.hpp"
-#include "airport_schema_utils.h"
+#include "airport_schema_utils.hpp"
+#include "duckdb/common/arrow/schema_metadata.hpp"
 
 #include <numeric>
 
@@ -130,6 +131,8 @@ namespace duckdb
 
       reading_arrow_column_names.reserve(column_count);
 
+      std::optional<std::string> rowid_column_name = std::nullopt;
+
       for (idx_t col_idx = 0;
            col_idx < column_count; col_idx++)
       {
@@ -138,9 +141,14 @@ namespace duckdb
         {
           throw InvalidInputException("airport_exchange: released schema passed");
         }
-        auto name = AirportNameForField(schema_item.name, col_idx);
 
-        reading_arrow_column_names.push_back(name);
+        // Check to see if the column is marked as the rowid column.
+        if (AirportFieldMetadataIsRowId(schema_item.metadata))
+        {
+          rowid_column_name = schema_item.name;
+        }
+
+        reading_arrow_column_names.push_back(AirportNameForField(schema_item.name, col_idx));
       }
 
       column_ids.reserve(destination_chunk_column_names.size());
@@ -155,7 +163,15 @@ namespace duckdb
         else
         {
           // This is right for outputs, because it allowed the read chunk to happen.
-          column_ids.push_back(output_index);
+          if (rowid_column_name.has_value() &&
+              destination_chunk_column_names[output_index] == rowid_column_name)
+          {
+            column_ids.push_back(COLUMN_IDENTIFIER_ROW_ID);
+          }
+          else
+          {
+            column_ids.push_back(output_index);
+          }
         }
         // printf("Output data chunk column %s (type=%s) (%d) comes from arrow column index index %d\n",
         //        destination_chunk_column_names[output_index].c_str(),

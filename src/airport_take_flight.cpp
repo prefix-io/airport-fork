@@ -28,7 +28,7 @@
 #include "duckdb/storage/statistics/numeric_stats.hpp"
 #include "storage/airport_catalog.hpp"
 #include "airport_flight_statistics.hpp"
-#include "airport_schema_utils.h"
+#include "airport_schema_utils.hpp"
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #include "duckdb/parser/tableref/table_function_ref.hpp"

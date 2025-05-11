@@ -1,4 +1,4 @@
-
+#pragma once
 #include "duckdb/common/arrow/schema_metadata.hpp"
 #include "duckdb/storage/table/append_state.hpp"
 

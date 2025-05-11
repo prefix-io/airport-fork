@@ -39,7 +39,7 @@
 #include "storage/airport_schema_entry.hpp"
 #include "storage/airport_table_set.hpp"
 #include "storage/airport_transaction.hpp"
-#include "airport_schema_utils.h"
+#include "airport_schema_utils.hpp"
 #include "storage/airport_alter_parameters.hpp"
 
 struct FunctionCatalogSchemaName
@@ -166,19 +166,13 @@ namespace duckdb
           throw InvalidInputException("AirportTableSet::LoadEntries: released schema passed");
         }
 
-        if (column.metadata != nullptr)
+        if (AirportFieldMetadataIsRowId(column.metadata))
         {
-          auto column_metadata = ArrowSchemaMetadata(column.metadata);
+          rowid_type = ArrowType::GetArrowLogicalType(config, column)->GetDuckType();
 
-          auto is_rowid = column_metadata.GetOption("is_rowid");
-          if (!is_rowid.empty())
-          {
-            rowid_type = ArrowType::GetArrowLogicalType(config, column)->GetDuckType();
-
-            // So the skipping here is a problem, since its assumed
-            // that the return_type and column_names can be easily indexed.
-            continue;
-          }
+          // So the skipping here is a problem, since its assumed
+          // that the return_type and column_names can be easily indexed.
+          continue;
         }
 
         auto column_name = AirportNameForField(column.name, col_idx);
@@ -208,16 +202,10 @@ namespace duckdb
            col_idx < (idx_t)arrow_schema.n_children; col_idx++)
       {
         auto &column = *arrow_schema.children[col_idx];
-        if (column.metadata != nullptr)
+        if (AirportFieldMetadataIsRowId(column.metadata))
         {
-          auto column_metadata = ArrowSchemaMetadata(column.metadata);
-
-          auto is_rowid = column_metadata.GetOption("is_rowid");
-          if (!is_rowid.empty())
-          {
-            rowid_adjust = 1;
-            continue;
-          }
+          rowid_adjust = 1;
+          continue;
         }
 
         auto column_def = ColumnDefinition(column_names[col_idx - rowid_adjust], return_types[col_idx - rowid_adjust]);
