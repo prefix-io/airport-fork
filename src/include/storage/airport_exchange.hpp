@@ -21,7 +21,7 @@ namespace duckdb
         const AirportTakeFlightParameters &take_flight_params_p,
         const std::optional<AirportTableFunctionFlightInfoParameters> &table_function_parameters_p,
         std::shared_ptr<arrow::Schema> schema,
-        const flight::FlightDescriptor &descriptor,
+        const flight::FlightDescriptor &descriptor, AirportTableEntry *table_entry,
         shared_ptr<DependencyItem> dependency = nullptr)
         : AirportTakeFlightBindData(
               scanner_producer_p,
@@ -31,6 +31,7 @@ namespace duckdb
               table_function_parameters_p,
               schema,
               descriptor,
+              table_entry,
               std::move(dependency))
     {
     }

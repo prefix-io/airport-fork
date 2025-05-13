@@ -1098,7 +1098,8 @@ namespace duckdb
         function_info.function->descriptor(),
         context,
         input, return_types, names, nullptr,
-        tf_params);
+        tf_params,
+        nullptr);
   }
 
   struct ArrowSchemaTableFunctionTypes

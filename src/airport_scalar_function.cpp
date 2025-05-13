@@ -91,7 +91,8 @@ namespace duckdb
           AirportTakeFlightParameters(server_location, context),
           std::nullopt,
           function_output_schema_,
-          this->descriptor());
+          this->descriptor(),
+          nullptr);
 
       // Read the schema for the results being returned.
       AIRPORT_ASSIGN_OR_RAISE_CONTAINER(auto read_schema,

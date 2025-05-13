@@ -144,13 +144,12 @@ namespace duckdb
 
     // printf("Requesting statistics for column %llu\n", column_index);
 
-    if (column_index == COLUMN_IDENTIFIER_ROW_ID)
+    if (column_index == COLUMN_IDENTIFIER_ROW_ID || column_index == COLUMN_IDENTIFIER_EMPTY)
     {
-      return make_uniq<BaseStatistics>(BaseStatistics::CreateEmpty(LogicalType::BIGINT));
-    }
-    else if (column_index == COLUMN_IDENTIFIER_EMPTY)
-    {
-      return make_uniq<BaseStatistics>(BaseStatistics::CreateEmpty(LogicalType::BOOLEAN));
+      // Don't return unknown statistics for these columns because
+      // if you do, it is assumed that DuckDB can get the name of the
+      // column.
+      return nullptr;
     }
 
     // So we need to map the column id to the logical type.

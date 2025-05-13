@@ -107,7 +107,8 @@ namespace duckdb
       vector<LogicalType> &return_types,
       vector<string> &names,
       std::shared_ptr<arrow::Schema> schema,
-      const std::optional<AirportTableFunctionFlightInfoParameters> &table_function_parameters);
+      const std::optional<AirportTableFunctionFlightInfoParameters> &table_function_parameters,
+      const AirportTableEntry *table_entry);
 
   std::string AirportNameForField(const string &name, const idx_t col_idx);
 

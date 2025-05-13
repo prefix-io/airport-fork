@@ -42,7 +42,9 @@ namespace duckdb
   {
     auto &db = DatabaseInstance::GetDatabase(context);
     auto &airport_take_flight_function_set = ExtensionUtil::GetTableFunction(db, "airport_take_flight");
-    auto airport_take_flight_function = airport_take_flight_function_set.functions.GetFunctionByArguments(context, {LogicalType::POINTER, LogicalType::VARCHAR});
+    auto airport_take_flight_function = airport_take_flight_function_set.functions.GetFunctionByArguments(
+        context,
+        {LogicalType::POINTER, LogicalType::POINTER, LogicalType::VARCHAR});
 
     D_ASSERT(table_data);
 
@@ -52,6 +54,7 @@ namespace duckdb
     vector<Value> inputs = {
         //        table_data->server_location(),
         Value::POINTER((uintptr_t)table_data.get()),
+        Value::POINTER((uintptr_t)this),
         transaction.identifier().has_value() ? transaction.identifier().value() : ""};
 
     named_parameter_map_t param_map;

@@ -15,24 +15,25 @@
 #include "duckdb/main/secret/secret_manager.hpp"
 #include "duckdb/planner/operator/logical_get.hpp"
 #include "duckdb/common/types/uuid.hpp"
-#include "airport_take_flight.hpp"
+#include "airport_flight_exception.hpp"
+#include "airport_flight_statistics.hpp"
+#include "airport_flight_stream.hpp"
 #include "airport_json_common.hpp"
 #include "airport_json_serializer.hpp"
-#include "airport_flight_stream.hpp"
 #include "airport_macros.hpp"
 #include "airport_request_headers.hpp"
-#include "airport_flight_exception.hpp"
+#include "airport_schema_utils.hpp"
+#include "airport_take_flight.hpp"
+#include "duckdb/catalog/catalog_entry/table_function_catalog_entry.hpp"
 #include "duckdb/common/arrow/schema_metadata.hpp"
 #include "duckdb/function/table/arrow/arrow_duck_schema.hpp"
-#include "msgpack.hpp"
+#include "duckdb/parser/tableref/table_function_ref.hpp"
 #include "duckdb/storage/statistics/numeric_stats.hpp"
+#include "msgpack.hpp"
 #include "storage/airport_catalog.hpp"
-#include "airport_flight_statistics.hpp"
-#include "airport_schema_utils.hpp"
+#include "storage/airport_table_entry.hpp"
 #include <openssl/bio.h>
 #include <openssl/evp.h>
-#include "duckdb/parser/tableref/table_function_ref.hpp"
-#include "duckdb/catalog/catalog_entry/table_function_catalog_entry.hpp"
 
 namespace duckdb
 {
@@ -91,7 +92,8 @@ namespace duckdb
       vector<string> &names,
       // So rather than the cached_flight_info_ptr here we can just have the cached schema.
       std::shared_ptr<arrow::Schema> schema,
-      const std::optional<AirportTableFunctionFlightInfoParameters> &table_function_parameters)
+      const std::optional<AirportTableFunctionFlightInfoParameters> &table_function_parameters,
+      const AirportTableEntry *table_entry)
   {
     // Create a UID for tracing.
     const auto trace_uuid = airport_trace_id();
@@ -171,6 +173,7 @@ namespace duckdb
         table_function_parameters,
         schema,
         descriptor,
+        table_entry,
         nullptr);
 
     AirportExamineSchema(context,
@@ -203,7 +206,7 @@ namespace duckdb
         params,
         descriptor,
         context,
-        input, return_types, names, nullptr, std::nullopt);
+        input, return_types, names, nullptr, std::nullopt, nullptr);
   }
 
   static unique_ptr<FunctionData> take_flight_bind_with_pointer(
@@ -217,14 +220,20 @@ namespace duckdb
       throw BinderException("airport: take_flight_with_pointer, pointers to AirportTable cannot be null");
     }
 
+    if (input.inputs[1].IsNull())
+    {
+      throw BinderException("airport: take_flight_with_pointer, pointers to AirportTable cannot be null");
+    }
+
     const auto info = reinterpret_cast<const duckdb::AirportAPITable *>(input.inputs[0].GetPointer());
+    const auto table_entry = reinterpret_cast<const AirportTableEntry *>(input.inputs[1].GetPointer());
 
     AirportTakeFlightParameters params(info->server_location(), context, input);
 
     // The transaction identifier is passed as the 2nd argument.
-    if (!input.inputs[1].IsNull())
+    if (!input.inputs[2].IsNull())
     {
-      auto id = input.inputs[1].ToString();
+      auto id = input.inputs[2].ToString();
       if (!id.empty())
       {
         params.add_header("airport-transaction-id", id);
@@ -239,7 +248,8 @@ namespace duckdb
         return_types,
         names,
         info->schema(),
-        std::nullopt);
+        std::nullopt,
+        table_entry);
   }
 
   static bool
@@ -1009,6 +1019,17 @@ namespace duckdb
     return AirportArrowScanInitLocalInternal(context.client, input, global_state_p);
   }
 
+  static BindInfo airport_take_flight_get_bind_info(const optional_ptr<FunctionData> bind_data_p)
+  {
+    auto &bind_data = bind_data_p->Cast<AirportTakeFlightBindData>();
+    // I know I'm dropping the const here, fix this later.
+    AirportTableEntry *table_entry = (AirportTableEntry *)bind_data.table_entry();
+
+    D_ASSERT(table_entry != nullptr);
+    BindInfo bind_info(*table_entry);
+    return bind_info;
+  }
+
   void AirportAddTakeFlightFunction(DatabaseInstance &instance)
   {
 
@@ -1037,7 +1058,7 @@ namespace duckdb
 
     auto take_flight_function_with_pointer = TableFunction(
         "airport_take_flight",
-        {LogicalType::POINTER, LogicalType::VARCHAR},
+        {LogicalType::POINTER, LogicalType::POINTER, LogicalType::VARCHAR},
         AirportTakeFlight,
         take_flight_bind_with_pointer,
         AirportArrowScanInitGlobal,
@@ -1056,6 +1077,7 @@ namespace duckdb
     take_flight_function_with_pointer.filter_pushdown = false;
     take_flight_function_with_pointer.table_scan_progress = take_flight_scan_progress;
     take_flight_function_with_pointer.statistics = airport_take_flight_statistics;
+    take_flight_function_with_pointer.get_bind_info = airport_take_flight_get_bind_info;
 
     take_flight_function_set.AddFunction(take_flight_function_with_pointer);
 

@@ -22,7 +22,7 @@
 #include "duckdb/parallel/thread_context.hpp"
 #include "duckdb/parser/tableref/table_function_ref.hpp"
 #include "duckdb/catalog/catalog_entry/table_function_catalog_entry.hpp"
-
+#include "storage/airport_table_entry.hpp"
 namespace flight = arrow::flight;
 
 /// File copied from
@@ -290,14 +290,15 @@ namespace duckdb
         const std::optional<AirportTableFunctionFlightInfoParameters> &table_function_parameters_p,
         std::shared_ptr<arrow::Schema> schema,
         const flight::FlightDescriptor &descriptor,
+        const AirportTableEntry *table_entry,
         shared_ptr<DependencyItem> dependency = nullptr)
         : ArrowScanFunctionData(scanner_producer_p, (uintptr_t)this, std::move(dependency)),
           AirportLocationDescriptor(take_flight_params_p.server_location(), descriptor),
           trace_id_(trace_id), estimated_records_(estimated_records),
           take_flight_params_(take_flight_params_p),
           table_function_parameters_(table_function_parameters_p),
-          schema_(schema)
-
+          schema_(schema),
+          table_entry_(table_entry)
     {
       AIRPORT_ARROW_ASSERT_OK_CONTAINER(
           ExportSchema(*schema, &schema_root.arrow_schema),
@@ -400,6 +401,11 @@ namespace duckdb
       return return_names_;
     }
 
+    const AirportTableEntry *table_entry() const
+    {
+      return table_entry_;
+    }
+
   private:
     // The total number of endpoints that will be scanned, this is used
     // in calculating the progress of the scan.
@@ -421,6 +427,8 @@ namespace duckdb
 
     vector<LogicalType> return_types_;
     vector<string> return_names_;
+
+    const AirportTableEntry *table_entry_ = nullptr;
   };
 
   duckdb::unique_ptr<duckdb::ArrowArrayStreamWrapper>
