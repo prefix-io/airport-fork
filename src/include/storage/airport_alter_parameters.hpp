@@ -4,6 +4,7 @@
 #include <numeric>
 #include <msgpack.hpp>
 #include "duckdb/parser/parsed_data/alter_table_info.hpp"
+#include "duckdb/common/arrow/arrow_converter.hpp"
 
 namespace duckdb
 {

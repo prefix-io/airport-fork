@@ -90,6 +90,138 @@ namespace duckdb
     MSGPACK_DEFINE_MAP(constraints)
   };
 
+  void AirportArrowSchemaToCreateTableInfo(CreateTableInfo &info,
+                                           std::shared_ptr<arrow::Schema> info_schema,
+                                           ClientContext &context,
+                                           const std::string &table_name,
+                                           AirportLocationDescriptor &location,
+                                           LogicalType &rowid_type)
+  {
+    auto &config = DBConfig::GetConfig(context);
+
+    ArrowSchema arrow_schema;
+
+    AIRPORT_ARROW_ASSERT_OK_CONTAINER(ExportSchema(*info_schema, &arrow_schema),
+                                      &location, "ExportSchema");
+
+    vector<string> column_names;
+    vector<duckdb::LogicalType> return_types;
+    vector<string> not_null_columns;
+
+    rowid_type = LogicalType(LogicalType::SQLNULL);
+
+    if (arrow_schema.metadata != nullptr)
+    {
+      auto schema_metadata = ArrowSchemaMetadata(arrow_schema.metadata);
+
+      auto check_constraints = schema_metadata.GetOption("check_constraints");
+      if (!check_constraints.empty())
+      {
+        AIRPORT_MSGPACK_UNPACK_CONTAINER(
+            AirportTableCheckConstraints, table_constraints,
+            check_constraints,
+            (&location),
+            "File to parse msgpack encoded table check constraints.");
+
+        for (auto &expression : table_constraints.constraints)
+        {
+          auto expression_list = Parser::ParseExpressionList(expression, context.GetParserOptions());
+          if (expression_list.size() != 1)
+          {
+            throw ParserException("Failed to parse CHECK constraint expression: " + expression + " for table " + table_name);
+          }
+          info.constraints.push_back(make_uniq<CheckConstraint>(std::move(expression_list[0])));
+        }
+      }
+    }
+
+    for (idx_t col_idx = 0;
+         col_idx < (idx_t)arrow_schema.n_children; col_idx++)
+    {
+      auto &column = *arrow_schema.children[col_idx];
+      if (!column.release)
+      {
+        throw InvalidInputException("ParseArrowSchemaIntoTableInfo released schema passed");
+      }
+
+      if (AirportFieldMetadataIsRowId(column.metadata))
+      {
+        rowid_type = ArrowType::GetArrowLogicalType(config, column)->GetDuckType();
+
+        // So the skipping here is a problem, since its assumed
+        // that the return_type and column_names can be easily indexed.
+        continue;
+      }
+
+      auto column_name = AirportNameForField(column.name, col_idx);
+
+      column_names.emplace_back(column_name);
+
+      auto arrow_type = ArrowType::GetArrowLogicalType(config, column);
+      if (column.dictionary)
+      {
+        auto dictionary_type = ArrowType::GetArrowLogicalType(config, *column.dictionary);
+        return_types.emplace_back(dictionary_type->GetDuckType());
+      }
+      else
+      {
+        return_types.emplace_back(arrow_type->GetDuckType());
+      }
+
+      if (!(column.flags & ARROW_FLAG_NULLABLE))
+      {
+        not_null_columns.emplace_back(column_name);
+      }
+    }
+
+    QueryResult::DeduplicateColumns(column_names);
+    idx_t rowid_adjust = 0;
+    for (idx_t col_idx = 0;
+         col_idx < (idx_t)arrow_schema.n_children; col_idx++)
+    {
+      auto &column = *arrow_schema.children[col_idx];
+      if (AirportFieldMetadataIsRowId(column.metadata))
+      {
+        rowid_adjust = 1;
+        continue;
+      }
+
+      auto column_def = ColumnDefinition(column_names[col_idx - rowid_adjust], return_types[col_idx - rowid_adjust]);
+      if (column.metadata != nullptr)
+      {
+        auto column_metadata = ArrowSchemaMetadata(column.metadata);
+
+        auto comment = column_metadata.GetOption("comment");
+        if (!comment.empty())
+        {
+          column_def.SetComment(duckdb::Value(comment));
+        }
+
+        auto default_value = column_metadata.GetOption("default");
+
+        if (!default_value.empty())
+        {
+          auto expressions = Parser::ParseExpressionList(default_value);
+          if (expressions.empty())
+          {
+            throw InternalException("Expression list is empty when parsing default value for column %s", column.name);
+          }
+          column_def.SetDefaultValue(std::move(expressions[0]));
+        }
+      }
+
+      info.columns.AddColumn(std::move(column_def));
+    }
+    arrow_schema.release(&arrow_schema);
+    info.columns.Finalize();
+
+    for (auto col_name : not_null_columns)
+    {
+      auto not_null_index = info.columns.GetColumnIndex(col_name);
+      info.constraints.emplace_back(make_uniq<NotNullConstraint>(not_null_index));
+    }
+  }
+
   void AirportTableSet::LoadEntries(ClientContext &context)
   {
     // auto &transaction = AirportTransaction::Get(context, catalog);
@@ -107,8 +239,6 @@ namespace duckdb
         airport_catalog.attach_parameters());
     connection_pool_.release(curl);
 
-    auto &config = DBConfig::GetConfig(context);
-
     for (auto &table : contents->tables)
     {
       // D_ASSERT(schema.name == table.schema_name);
@@ -117,131 +247,13 @@ namespace duckdb
       info.table = table.name();
       info.comment = table.comment();
 
-      auto info_schema = table.schema();
-
-      const auto &server_location = airport_catalog.attach_parameters()->location();
-
-      ArrowSchema arrow_schema;
-
-      AIRPORT_ARROW_ASSERT_OK_CONTAINER(ExportSchema(*info_schema, &arrow_schema),
-                                        &table, "ExportSchema");
-
-      vector<string> column_names;
-      vector<duckdb::LogicalType> return_types;
-      vector<string> not_null_columns;
-
-      LogicalType rowid_type = LogicalType(LogicalType::SQLNULL);
-
-      if (arrow_schema.metadata != nullptr)
-      {
-        auto schema_metadata = ArrowSchemaMetadata(arrow_schema.metadata);
-
-        auto check_constraints = schema_metadata.GetOption("check_constraints");
-        if (!check_constraints.empty())
-        {
-          AIRPORT_MSGPACK_UNPACK(
-              AirportTableCheckConstraints, table_constraints,
-              check_constraints,
-              server_location,
-              "File to parse msgpack encoded table check constraints.");
-
-          for (auto &expression : table_constraints.constraints)
-          {
-            auto expression_list = Parser::ParseExpressionList(expression, context.GetParserOptions());
-            if (expression_list.size() != 1)
-            {
-              throw ParserException("Failed to parse CHECK constraint expression: " + expression + " for table " + table.name());
-            }
-            info.constraints.push_back(make_uniq<CheckConstraint>(std::move(expression_list[0])));
-          }
-        }
-      }
-
-      for (idx_t col_idx = 0;
-           col_idx < (idx_t)arrow_schema.n_children; col_idx++)
-      {
-        auto &column = *arrow_schema.children[col_idx];
-        if (!column.release)
-        {
-          throw InvalidInputException("AirportTableSet::LoadEntries: released schema passed");
-        }
-
-        if (AirportFieldMetadataIsRowId(column.metadata))
-        {
-          rowid_type = ArrowType::GetArrowLogicalType(config, column)->GetDuckType();
-
-          // So the skipping here is a problem, since its assumed
-          // that the return_type and column_names can be easily indexed.
-          continue;
-        }
-
-        auto column_name = AirportNameForField(column.name, col_idx);
-
-        column_names.emplace_back(column_name);
-
-        auto arrow_type = ArrowType::GetArrowLogicalType(config, column);
-        if (column.dictionary)
-        {
-          auto dictionary_type = ArrowType::GetArrowLogicalType(config, *column.dictionary);
-          return_types.emplace_back(dictionary_type->GetDuckType());
-        }
-        else
-        {
-          return_types.emplace_back(arrow_type->GetDuckType());
-        }
-
-        if (!(column.flags & ARROW_FLAG_NULLABLE))
-        {
-          not_null_columns.emplace_back(column_name);
-        }
-      }
-
-      QueryResult::DeduplicateColumns(column_names);
-      idx_t rowid_adjust = 0;
-      for (idx_t col_idx = 0;
-           col_idx < (idx_t)arrow_schema.n_children; col_idx++)
-      {
-        auto &column = *arrow_schema.children[col_idx];
-        if (AirportFieldMetadataIsRowId(column.metadata))
-        {
-          rowid_adjust = 1;
-          continue;
-        }
-
-        auto column_def = ColumnDefinition(column_names[col_idx - rowid_adjust], return_types[col_idx - rowid_adjust]);
-        if (column.metadata != nullptr)
-        {
-          auto column_metadata = ArrowSchemaMetadata(column.metadata);
-
-          auto comment = column_metadata.GetOption("comment");
-          if (!comment.empty())
-          {
-            column_def.SetComment(duckdb::Value(comment));
-          }
-
-          auto default_value = column_metadata.GetOption("default");
-
-          if (!default_value.empty())
-          {
-            auto expressions = Parser::ParseExpressionList(default_value);
-            if (expressions.empty())
-            {
-              throw InternalException("Expression list is empty when parsing default value for column %s", column.name);
-            }
-            column_def.SetDefaultValue(std::move(expressions[0]));
-          }
-        }
-
-        info.columns.AddColumn(std::move(column_def));
-      }
-      arrow_schema.release(&arrow_schema);
-
-      for (auto col_name : not_null_columns)
-      {
-        auto not_null_index = info.columns.GetColumnIndex(col_name);
-        info.constraints.emplace_back(make_uniq<NotNullConstraint>(not_null_index));
-      }
-
+      LogicalType rowid_type;
+      AirportArrowSchemaToCreateTableInfo(info,
+                                          table.schema(),
+                                          context,
+                                          table.name(),
+                                          table,
+                                          rowid_type);
       // printf("Creating a table in catalog %s, schema %s, name %s\n", catalog.GetName().c_str(), schema.name.c_str(), info.table.c_str());
 
       auto table_entry = make_uniq<AirportTableEntry>(catalog, schema, info, rowid_type);
@@ -418,13 +430,21 @@ namespace duckdb
                                       &table_location,
                                       "");
 
-    auto rowid_type = AirportAPI::GetRowIdType(
-        context,
-        info_schema,
-        table_location);
+    // Its important to use the schema returne from the server, not CreateTableInfo
+    // that was converted to be sent to the server.
+    CreateTableInfo create_info;
+    LogicalType rowid_type;
+    create_info.table = base.table;
+
+    AirportArrowSchemaToCreateTableInfo(create_info,
+                                        info_schema,
+                                        context,
+                                        base.table,
+                                        table_location,
+                                        rowid_type);
 
     // FIXME: check to make sure the rowid column is the correct type, this seems to be missing here.
-    auto table_entry = make_uniq<AirportTableEntry>(catalog, this->schema, base, rowid_type);
+    auto table_entry = make_uniq<AirportTableEntry>(catalog, this->schema, create_info, rowid_type);
 
     AirportSerializedFlightAppMetadata created_table_metadata;
     created_table_metadata.catalog = base.catalog;
