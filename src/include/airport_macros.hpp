@@ -72,7 +72,7 @@
   }                                                                                           \
   catch (const std::exception &e)                                                             \
   {                                                                                           \
-    throw AirportFlightException(location, message + string(e.what()));                       \
+    throw AirportFlightException(location, string(message) + " " + string(e.what()));         \
   }
 
 #define AIRPORT_MSGPACK_UNPACK_CONTAINER(destination_type, destination_name, source, container, message) \

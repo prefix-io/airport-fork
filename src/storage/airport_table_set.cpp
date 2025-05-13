@@ -245,7 +245,7 @@ namespace duckdb
       CreateTableInfo info;
 
       info.table = table.name();
-      info.comment = table.comment();
+      info.comment = table.comment().value_or("");
 
       LogicalType rowid_type;
       AirportArrowSchemaToCreateTableInfo(info,
@@ -299,11 +299,74 @@ namespace duckdb
                        not_null_constraints, unique_constraints, check_constraints)
   };
 
+  unique_ptr<AirportTableEntry> CatalogEntryFromFlightInfo(std::unique_ptr<arrow::flight::FlightInfo> flight_info,
+                                                           const std::string &server_location,
+                                                           AirportSchemaEntry &schema_entry,
+                                                           Catalog &catalog,
+                                                           ClientContext &context)
+  {
+    if (flight_info->app_metadata().empty())
+    {
+      throw InternalException("Flight info app_metadata is empty.");
+    }
+
+    printf("Flight info app_metadata: %s\n", flight_info->app_metadata().c_str());
+    AIRPORT_MSGPACK_UNPACK(AirportSerializedFlightAppMetadata,
+                           app_metadata_obj,
+                           flight_info->app_metadata(),
+                           server_location,
+                           "Failed to unpack flight's app_metadata");
+
+    AirportLocationDescriptor table_location(
+        server_location,
+        flight_info->descriptor());
+
+    std::shared_ptr<arrow::Schema> info_schema;
+    arrow::ipc::DictionaryMemo dictionary_memo;
+    AIRPORT_ASSIGN_OR_RAISE_CONTAINER(info_schema,
+                                      flight_info->GetSchema(&dictionary_memo),
+                                      &table_location,
+                                      "");
+
+    // Its important to use the schema returned from the server, not CreateTableInfo
+    // that was converted to be sent to the server.
+    CreateTableInfo create_info;
+    LogicalType rowid_type;
+    create_info.table = app_metadata_obj.name;
+    create_info.comment = app_metadata_obj.comment.value_or("");
+    create_info.schema = app_metadata_obj.schema;
+    create_info.catalog = app_metadata_obj.catalog;
+
+    AirportArrowSchemaToCreateTableInfo(create_info,
+                                        info_schema,
+                                        context,
+                                        app_metadata_obj.name,
+                                        table_location,
+                                        rowid_type);
+
+    auto table_entry = make_uniq<AirportTableEntry>(catalog, schema_entry, create_info, rowid_type);
+
+    // Since we're only reading a schema from the server, and we don't have the full
+    // table metadata from the server (from list_schemas), we're going to fake this for now.
+    AirportSerializedFlightAppMetadata created_table_metadata;
+    created_table_metadata.catalog = app_metadata_obj.catalog;
+    created_table_metadata.schema = app_metadata_obj.schema;
+    created_table_metadata.name = app_metadata_obj.name;
+    created_table_metadata.comment = app_metadata_obj.comment;
+
+    table_entry->table_data = make_uniq<AirportAPITable>(table_location,
+                                                         AirportAPIObjectBase::GetSchema(server_location, *flight_info),
+                                                         created_table_metadata);
+    return table_entry;
+  }
+
   optional_ptr<CatalogEntry> AirportTableSet::CreateTable(ClientContext &context, BoundCreateTableInfo &info)
   {
     auto &airport_catalog = catalog.Cast<AirportCatalog>();
     auto &base = info.base->Cast<CreateTableInfo>();
 
+    // Take the information from the CreateTableInfo and create an Arrow schema
+    // from it so it can be serialized and sent ot the server.
     vector<LogicalType> column_types;
     vector<string> column_names;
     for (auto &col : base.columns.Logical())
@@ -312,17 +375,14 @@ namespace duckdb
       column_names.push_back(col.Name());
     }
 
-    // To perform this creation we likely want to serialize the schema and send it to the server.
-    // so the table can be created as part of a DoAction call.
-
-    // So to convert all of the columns an arrow schema we need to look into the code for
-    // doing inserts.
-
     ArrowSchema schema;
     auto client_properties = context.GetClientProperties();
-
     auto &server_location = airport_catalog.attach_parameters()->location();
 
+    // This will create a C Arrow Schema (since this is DuckDB that handles
+    // all of the DuckDB types),
+    // that schema needs to be exported to C++
+    // so it can be serialized and sent to the server.
     ArrowConverter::ToArrowSchema(&schema,
                                   column_types,
                                   column_names,
@@ -330,30 +390,11 @@ namespace duckdb
 
     AIRPORT_ASSIGN_OR_RAISE_LOCATION(auto real_schema, arrow::ImportSchema(&schema), server_location, "");
 
-    //    std::shared_ptr<arrow::KeyValueMetadata> schema_metadata = std::make_shared<arrow::KeyValueMetadata>();
-    //    AIRPORT_ARROW_ASSERT_OK_LOCATION(schema_metadata->Set("table_name", base.table), airport_catalog.attach_parameters()->location, "");
-    //    AIRPORT_ARROW_ASSERT_OK_LOCATION(schema_metadata->Set("schema_name", base.schema), airport_catalog.attach_parameters()->location, "");
-    //    AIRPORT_ARROW_ASSERT_OK_LOCATION(schema_metadata->Set("catalog_name", base.catalog), airport_catalog.attach_parameters()->location, "");
-    //    real_schema = real_schema->WithMetadata(schema_metadata);
-
-    // Not make the call, need to include the schema name.
-
-    arrow::flight::FlightCallOptions call_options;
-
-    airport_add_standard_headers(call_options, airport_catalog.attach_parameters()->location());
-    airport_add_authorization_header(call_options, airport_catalog.attach_parameters()->auth_token());
-
-    call_options.headers.emplace_back("airport-action-name", "create_table");
-
-    auto flight_client = AirportAPI::FlightClientForLocation(airport_catalog.attach_parameters()->location());
-
     AIRPORT_ASSIGN_OR_RAISE_LOCATION(
         auto serialized_schema,
         arrow::ipc::SerializeSchema(*real_schema, arrow::default_memory_pool()),
         server_location,
-        "");
-
-    // So we should change this to pass some proper messagepack data.
+        "serialize schema");
 
     AirportCreateTableParameters params;
     params.catalog_name = base.catalog;
@@ -394,68 +435,42 @@ namespace duckdb
       }
     }
 
+    arrow::flight::FlightCallOptions call_options;
+
+    airport_add_standard_headers(call_options, airport_catalog.attach_parameters()->location());
+    airport_add_authorization_header(call_options, airport_catalog.attach_parameters()->auth_token());
+
+    call_options.headers.emplace_back("airport-action-name", "create_table");
+
+    auto flight_client = AirportAPI::FlightClientForLocation(airport_catalog.attach_parameters()->location());
+
     AIRPORT_MSGPACK_ACTION_SINGLE_PARAMETER(action, "create_table", params);
 
     std::unique_ptr<arrow::flight::ResultStream> action_results;
     AIRPORT_ASSIGN_OR_RAISE_LOCATION(action_results, flight_client->DoAction(call_options, action), server_location, "airport_create_table");
 
-    AIRPORT_ASSIGN_OR_RAISE_LOCATION(auto flight_info_buffer, action_results->Next(), server_location, "");
+    AIRPORT_ASSIGN_OR_RAISE_LOCATION(auto result_buffer, action_results->Next(), server_location, "");
+    AIRPORT_ARROW_ASSERT_OK_LOCATION(action_results->Drain(), server_location, "");
 
-    if (flight_info_buffer == nullptr)
+    if (result_buffer == nullptr)
     {
       throw InternalException("No flight info returned from create_table action");
     }
 
-    std::string_view serialized_flight_info(reinterpret_cast<const char *>(flight_info_buffer->body->data()), flight_info_buffer->body->size());
+    std::string_view serialized_flight_info(reinterpret_cast<const char *>(result_buffer->body->data()), result_buffer->body->size());
 
     // Now how to we deserialize the flight info from that buffer...
-    AIRPORT_ASSIGN_OR_RAISE_LOCATION(auto flight_info,
-                                     arrow::flight::FlightInfo::Deserialize(serialized_flight_info),
-                                     server_location,
-                                     "Error deserializing flight info from create_table RPC");
-
-    // We aren't interested in anything after the first result.
-    AIRPORT_ARROW_ASSERT_OK_LOCATION(action_results->Drain(), server_location, "");
-
-    // FIXME: need to extract the rowid type from the schema, I think there is function that does this.
-
-    AirportLocationDescriptor table_location(
+    AIRPORT_ASSIGN_OR_RAISE_LOCATION(
+        auto flight_info,
+        arrow::flight::FlightInfo::Deserialize(serialized_flight_info),
         server_location,
-        flight_info->descriptor());
+        "Error deserializing flight info from create_table RPC");
 
-    std::shared_ptr<arrow::Schema> info_schema;
-    arrow::ipc::DictionaryMemo dictionary_memo;
-    AIRPORT_ASSIGN_OR_RAISE_CONTAINER(info_schema,
-                                      flight_info->GetSchema(&dictionary_memo),
-                                      &table_location,
-                                      "");
-
-    // Its important to use the schema returne from the server, not CreateTableInfo
-    // that was converted to be sent to the server.
-    CreateTableInfo create_info;
-    LogicalType rowid_type;
-    create_info.table = base.table;
-
-    AirportArrowSchemaToCreateTableInfo(create_info,
-                                        info_schema,
-                                        context,
-                                        base.table,
-                                        table_location,
-                                        rowid_type);
-
-    // FIXME: check to make sure the rowid column is the correct type, this seems to be missing here.
-    auto table_entry = make_uniq<AirportTableEntry>(catalog, this->schema, create_info, rowid_type);
-
-    AirportSerializedFlightAppMetadata created_table_metadata;
-    created_table_metadata.catalog = base.catalog;
-    created_table_metadata.schema = base.schema;
-    created_table_metadata.name = base.table;
-    created_table_metadata.comment = "";
-
-    // This uses a special constructor because we don't have the parsing from the Catalog its custom Created
-    table_entry->table_data = make_uniq<AirportAPITable>(table_location,
-                                                         AirportAPIObjectBase::GetSchema(server_location, *flight_info),
-                                                         created_table_metadata);
+    auto table_entry = CatalogEntryFromFlightInfo(std::move(flight_info),
+                                                  server_location,
+                                                  this->schema,
+                                                  catalog,
+                                                  context);
 
     return CreateEntry(std::move(table_entry));
   }

@@ -95,7 +95,7 @@ namespace duckdb
     string name;
 
     // A custom comment for this item.
-    string comment;
+    std::optional<string> comment;
 
     // This is the Arrow serialized schema for the input
     // to the function, its not set on tables.
@@ -127,7 +127,7 @@ namespace duckdb
         const std::string &catalog,
         const std::string &schema_name,
         const std::string &name,
-        const std::string &comment,
+        const std::optional<std::string> &comment = std::nullopt,
         const std::optional<std::string> &input_schema = std::nullopt)
         : AirportLocationDescriptor(server_location, descriptor),
           schema_(schema),
@@ -193,7 +193,7 @@ namespace duckdb
       return name_;
     }
 
-    const std::string &comment() const
+    const std::optional<std::string> &comment() const
     {
       return comment_;
     }
@@ -224,7 +224,7 @@ namespace duckdb
     const string catalog_name_;
     const string schema_name_;
     const string name_;
-    const string comment_;
+    const std::optional<string> comment_;
   };
 
   struct AirportAPITable : AirportAPIObjectBase
