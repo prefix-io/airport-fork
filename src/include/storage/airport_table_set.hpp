@@ -31,13 +31,6 @@ namespace duckdb
 
   protected:
     void LoadEntries(ClientContext &context) override;
-
-    void AlterTable(ClientContext &context, RenameTableInfo &info);
-    void AlterTable(ClientContext &context, RenameColumnInfo &info);
-    void AlterTable(ClientContext &context, AddColumnInfo &info);
-    void AlterTable(ClientContext &context, RemoveColumnInfo &info);
-
-    static void AddColumn(ClientContext &context, AirportResult &result, AirportTableInfo &table_info, idx_t column_offset = 0);
   };
 
   class AirportScalarFunctionSet : public AirportInSchemaSet
