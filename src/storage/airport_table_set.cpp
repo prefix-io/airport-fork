@@ -42,32 +42,6 @@
 #include "airport_schema_utils.hpp"
 #include "storage/airport_alter_parameters.hpp"
 
-struct FunctionCatalogSchemaName
-{
-  std::string catalog_name;
-  std::string schema_name;
-  std::string name;
-
-  // Define equality operator to compare two keys
-  bool operator==(const FunctionCatalogSchemaName &other) const
-  {
-    return catalog_name == other.catalog_name && schema_name == other.schema_name && name == other.name;
-  }
-};
-
-namespace std
-{
-  template <>
-  struct hash<FunctionCatalogSchemaName>
-  {
-    size_t operator()(const FunctionCatalogSchemaName &k) const
-    {
-      // Combine the hash of all 3 strings
-      return hash<std::string>()(k.catalog_name) ^ (hash<std::string>()(k.schema_name) << 1) ^ (hash<std::string>()(k.name) << 2);
-    }
-  };
-}
-
 namespace duckdb
 {
 
@@ -478,141 +452,6 @@ namespace duckdb
 
     auto &airport_entry = entry.get()->Cast<AirportTableEntry>();
     ReplaceEntry(alter.name, airport_entry.AlterEntryDirect(context, alter));
-  }
-
-  // Given an Arrow schema return a vector of the LogicalTypes for that schema.
-  static vector<LogicalType> AirportSchemaToLogicalTypes(
-      ClientContext &context,
-      std::shared_ptr<arrow::Schema> schema,
-      const string &server_location,
-      const flight::FlightDescriptor &flight_descriptor)
-  {
-    ArrowSchemaWrapper schema_root;
-
-    AIRPORT_ARROW_ASSERT_OK_LOCATION_DESCRIPTOR(
-        ExportSchema(*schema, &schema_root.arrow_schema),
-        server_location,
-        flight_descriptor,
-        "ExportSchema");
-
-    vector<LogicalType> return_types;
-    auto &config = DBConfig::GetConfig(context);
-
-    const idx_t column_count = (idx_t)schema_root.arrow_schema.n_children;
-
-    return_types.reserve(column_count);
-
-    for (idx_t col_idx = 0;
-         col_idx < column_count; col_idx++)
-    {
-      auto &schema_item = *schema_root.arrow_schema.children[col_idx];
-      if (!schema_item.release)
-      {
-        throw InvalidInputException("AirportSchemaToLogicalTypes: released schema passed");
-      }
-      auto arrow_type = ArrowType::GetArrowLogicalType(config, schema_item);
-
-      if (schema_item.dictionary)
-      {
-        auto dictionary_type = ArrowType::GetArrowLogicalType(config, *schema_item.dictionary);
-        arrow_type->SetDictionary(std::move(dictionary_type));
-      }
-
-      // Indicate that the field should select any type.
-      bool is_any_type = false;
-      if (schema_item.metadata != nullptr)
-      {
-        auto column_metadata = ArrowSchemaMetadata(schema_item.metadata);
-        if (!column_metadata.GetOption("is_any_type").empty())
-        {
-          is_any_type = true;
-        }
-      }
-
-      if (is_any_type)
-      {
-        // This will be sorted out in the bind of the function.
-        return_types.push_back(LogicalType::ANY);
-      }
-      else
-      {
-        return_types.emplace_back(arrow_type->GetDuckType());
-      }
-    }
-    return return_types;
-  }
-
-  void AirportScalarFunctionSet::LoadEntries(ClientContext &context)
-  {
-    // auto &transaction = AirportTransaction::Get(context, catalog);
-
-    auto &airport_catalog = catalog.Cast<AirportCatalog>();
-
-    // TODO: handle out-of-order columns using position property
-    auto curl = connection_pool_.acquire();
-    auto contents = AirportAPI::GetSchemaItems(
-        curl,
-        catalog.GetDBPath(),
-        schema.name,
-        schema.serialized_source(),
-        cache_directory_,
-        airport_catalog.attach_parameters());
-
-    connection_pool_.release(curl);
-
-    //    printf("AirportScalarFunctionSet loading entries\n");
-    //    printf("Total functions: %lu\n", tables_and_functions.second.size());
-
-    // There can be functions with the same name.
-    std::unordered_map<FunctionCatalogSchemaName, std::vector<AirportAPIScalarFunction>> functions_by_name;
-
-    for (auto &function : contents->scalar_functions)
-    {
-      FunctionCatalogSchemaName function_key{function.catalog_name(), function.schema_name(), function.name()};
-      functions_by_name[function_key].emplace_back(function);
-    }
-
-    for (const auto &pair : functions_by_name)
-    {
-      ScalarFunctionSet flight_func_set(pair.first.name);
-
-      // FIXME: need a way to specify the function stability.
-      for (const auto &function : pair.second)
-      {
-        auto input_types = AirportSchemaToLogicalTypes(context, function.input_schema(), function.server_location(), function.descriptor());
-
-        auto output_types = AirportSchemaToLogicalTypes(context, function.schema(), function.server_location(), function.descriptor());
-        D_ASSERT(output_types.size() == 1);
-
-        auto scalar_func = ScalarFunction(input_types, output_types[0],
-                                          AirportScalarFunctionProcessChunk,
-                                          AirportScalarFunctionBind,
-                                          nullptr,
-                                          nullptr,
-                                          AirportScalarFunctionInitLocalState,
-                                          LogicalTypeId::INVALID,
-                                          duckdb::FunctionStability::VOLATILE,
-                                          duckdb::FunctionNullHandling::DEFAULT_NULL_HANDLING,
-                                          nullptr);
-        scalar_func.function_info = make_uniq<AirportScalarFunctionInfo>(function.name(),
-                                                                         function,
-                                                                         function.schema(),
-                                                                         function.input_schema(),
-                                                                         catalog);
-
-        flight_func_set.AddFunction(scalar_func);
-      }
-
-      CreateScalarFunctionInfo info = CreateScalarFunctionInfo(flight_func_set);
-      info.catalog = pair.first.catalog_name;
-      info.schema = pair.first.schema_name;
-
-      auto function_entry = make_uniq_base<StandardEntry, ScalarFunctionCatalogEntry>(
-          catalog,
-          schema,
-          info.Cast<CreateScalarFunctionInfo>());
-      CreateEntry(std::move(function_entry));
-    }
   }
 
   class AirportDynamicTableFunctionInfo : public TableFunctionInfo
@@ -1204,11 +1043,11 @@ namespace duckdb
     connection_pool_.release(curl);
 
     // There can be functions with the same name.
-    std::unordered_map<FunctionCatalogSchemaName, std::vector<AirportAPITableFunction>> functions_by_name;
+    std::unordered_map<AirportFunctionCatalogSchemaNameKey, std::vector<AirportAPITableFunction>> functions_by_name;
 
     for (auto &function : contents->table_functions)
     {
-      FunctionCatalogSchemaName function_key{function.catalog_name(), function.schema_name(), function.name()};
+      AirportFunctionCatalogSchemaNameKey function_key{function.catalog_name(), function.schema_name(), function.name()};
       functions_by_name[function_key].emplace_back(function);
     }
 
