@@ -34,19 +34,6 @@ namespace duckdb
     void LoadEntries(ClientContext &context) override;
   };
 
-  class AirportTableFunctionSet : public AirportCatalogSetBase
-  {
-
-  protected:
-    void LoadEntries(ClientContext &context) override;
-
-  public:
-    explicit AirportTableFunctionSet(AirportCurlPool &connection_pool, AirportSchemaEntry &schema, const string &cache_directory) : AirportCatalogSetBase(connection_pool, schema, cache_directory)
-    {
-    }
-    ~AirportTableFunctionSet() {}
-  };
-
   class AirportTableEntry;
 
   unique_ptr<AirportTableEntry> AirportCatalogEntryFromFlightInfo(

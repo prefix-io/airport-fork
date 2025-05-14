@@ -4,6 +4,7 @@
 #include "storage/airport_table_set.hpp"
 #include "storage/airport_curl_pool.hpp"
 #include "storage/airport_scalar_function_set.hpp"
+#include "storage/airport_table_function_set.hpp"
 
 namespace duckdb
 {
