@@ -229,7 +229,7 @@ namespace duckdb
 
   struct AirportAPITable : AirportAPIObjectBase
   {
-    AirportAPITable(
+    explicit AirportAPITable(
         const std::string &server_location,
         const arrow::flight::FlightDescriptor &descriptor,
         const std::shared_ptr<arrow::Schema> &schema,
@@ -242,7 +242,7 @@ namespace duckdb
     {
     }
 
-    AirportAPITable(
+    explicit AirportAPITable(
         const AirportLocationDescriptor &location_descriptor,
         const std::shared_ptr<arrow::Schema> &schema,
         const AirportSerializedFlightAppMetadata &parsed_app_metadata)
@@ -258,7 +258,7 @@ namespace duckdb
   struct AirportAPIScalarFunction : AirportAPIObjectBase
   {
 
-    AirportAPIScalarFunction(
+    explicit AirportAPIScalarFunction(
         const std::string &server_location,
         const arrow::flight::FlightDescriptor &descriptor,
         const std::shared_ptr<arrow::Schema> &schema,
@@ -299,7 +299,7 @@ namespace duckdb
     const string location_;
 
   public:
-    AirportAPITableFunction(
+    explicit AirportAPITableFunction(
         const std::string &server_location,
         const flight::FlightDescriptor &flight_descriptor,
         const std::shared_ptr<arrow::Schema> &schema,
@@ -335,12 +335,11 @@ namespace duckdb
 
   struct AirportAPISchema
   {
-
-    AirportAPISchema(const string &catalog_name,
-                     const string &schema_name,
-                     const string &comment,
-                     const unordered_map<string, string> &tags,
-                     const AirportSerializedContentsWithSHA256Hash &source)
+    explicit AirportAPISchema(const string &catalog_name,
+                              const string &schema_name,
+                              const string &comment,
+                              const unordered_map<string, string> &tags,
+                              const AirportSerializedContentsWithSHA256Hash &source)
         : catalog_name_(catalog_name),
           schema_name_(schema_name),
           comment_(comment),
