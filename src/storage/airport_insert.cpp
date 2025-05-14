@@ -175,7 +175,9 @@ namespace duckdb
 
     ArrowSchema send_schema;
     auto client_properties = context.GetClientProperties();
-    ArrowConverter::ToArrowSchema(&send_schema, insert_global_state->send_types, send_names,
+    ArrowConverter::ToArrowSchema(&send_schema,
+                                  insert_global_state->send_types,
+                                  send_names,
                                   client_properties);
 
     D_ASSERT(table != nullptr);

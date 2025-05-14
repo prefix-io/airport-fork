@@ -9,6 +9,7 @@ namespace duckdb
   class AirportResult;
   class AirportSchemaEntry;
   class AirportCurlPool;
+  struct AirportTableInfo;
 
   class AirportTableSet : public AirportInSchemaSet
   {
@@ -62,5 +63,14 @@ namespace duckdb
     explicit AirportTableFunctionSet(AirportCurlPool &connection_pool, AirportSchemaEntry &schema, const string &cache_directory);
     ~AirportTableFunctionSet() {}
   };
+
+  class AirportTableEntry;
+
+  unique_ptr<AirportTableEntry> AirportCatalogEntryFromFlightInfo(
+      std::unique_ptr<arrow::flight::FlightInfo> flight_info,
+      const std::string &server_location,
+      SchemaCatalogEntry &schema_entry,
+      Catalog &catalog,
+      ClientContext &context);
 
 } // namespace duckdb

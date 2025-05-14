@@ -3,9 +3,11 @@
 #include "airport_catalog_api.hpp"
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
 #include "duckdb/parser/parsed_data/create_table_info.hpp"
+#include "storage/airport_table_set.hpp"
 
 namespace duckdb
 {
+  class AirportTableSet;
 
   struct AirportTableInfo
   {
@@ -62,6 +64,8 @@ namespace duckdb
     TableFunction GetScanFunction(ClientContext &context, unique_ptr<FunctionData> &bind_data) override;
 
     TableStorageInfo GetStorageInfo(ClientContext &context) override;
+
+    unique_ptr<AirportTableEntry> AlterEntryDirect(ClientContext &context, AlterInfo &info);
 
     // void BindUpdateConstraints(Binder &binder, LogicalGet &get, LogicalProjection &proj, LogicalUpdate &update,
     //                            ClientContext &context) override;

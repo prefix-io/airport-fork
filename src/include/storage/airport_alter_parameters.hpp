@@ -101,11 +101,14 @@ namespace duckdb
     // How to serialize the type of the column, well we want to use a Arrow schema it seems
     // like with just a single field.
     std::string column_schema;
+
+    std::vector<std::string> column_path;
     bool if_field_not_exists;
 
     explicit AirportAlterTableAddFieldParameters(const AddFieldInfo &info, ClientContext &context,
                                                  const std::string &server_location)
         : AirportAlterBase(info),
+          column_path(info.column_path),
           if_field_not_exists(info.if_field_not_exists)
 
     {
@@ -134,7 +137,7 @@ namespace duckdb
       column_schema = serialized_schema->ToString();
     }
 
-    MSGPACK_DEFINE_MAP(catalog, schema, name, ignore_not_found, if_field_not_exists, column_schema);
+    MSGPACK_DEFINE_MAP(catalog, schema, name, ignore_not_found, if_field_not_exists, column_schema, column_path);
   };
 
   struct AirportRemoveTableColumnParameters : AirportAlterBase
@@ -182,7 +185,7 @@ namespace duckdb
     {
     }
 
-    MSGPACK_DEFINE_MAP(catalog, schema, name, column_path, new_name);
+    MSGPACK_DEFINE_MAP(catalog, schema, name, ignore_not_found, column_path, new_name);
   };
 
   struct AirportAlterTableRenameTableParameters : AirportAlterBase
@@ -195,7 +198,7 @@ namespace duckdb
     {
     }
 
-    MSGPACK_DEFINE_MAP(catalog, schema, name, new_table_name);
+    MSGPACK_DEFINE_MAP(catalog, schema, name, ignore_not_found, new_table_name);
   };
 
   struct AirportAlterTableSetDefaultParameters : AirportAlterBase
@@ -210,7 +213,7 @@ namespace duckdb
     {
     }
 
-    MSGPACK_DEFINE_MAP(catalog, schema, name, column_name, expression);
+    MSGPACK_DEFINE_MAP(catalog, schema, name, ignore_not_found, column_name, expression);
   };
 
   struct AirportAlterTableChangeColumnTypeParameters : AirportAlterBase
@@ -218,7 +221,7 @@ namespace duckdb
     std::string column_schema;
     std::string expression;
 
-    explicit AirportAlterTableChangeColumnTypeParameters(ChangeColumnTypeInfo &info, ClientContext &context,
+    explicit AirportAlterTableChangeColumnTypeParameters(const ChangeColumnTypeInfo &info, ClientContext &context,
                                                          const std::string &server_location)
         : AirportAlterBase(info),
           expression(info.expression->ToString())
@@ -249,7 +252,7 @@ namespace duckdb
       column_schema = serialized_schema->ToString();
     }
 
-    MSGPACK_DEFINE_MAP(catalog, schema, name, column_schema, expression);
+    MSGPACK_DEFINE_MAP(catalog, schema, name, ignore_not_found, column_schema, expression);
   };
 
   struct AirportAlterTableSetNotNullParameters : AirportAlterBase
@@ -262,7 +265,7 @@ namespace duckdb
     {
     }
 
-    MSGPACK_DEFINE_MAP(catalog, schema, name, column_name);
+    MSGPACK_DEFINE_MAP(catalog, schema, name, ignore_not_found, column_name, ignore_not_found);
   };
 
   struct AirportAlterTableDropNotNullParameters : AirportAlterBase
@@ -275,7 +278,7 @@ namespace duckdb
     {
     }
 
-    MSGPACK_DEFINE_MAP(catalog, schema, name, column_name);
+    MSGPACK_DEFINE_MAP(catalog, schema, name, ignore_not_found, column_name);
   };
 
   struct AirportAlterTableAddConstraintParameters : AirportAlterBase
@@ -288,7 +291,7 @@ namespace duckdb
     {
     }
 
-    MSGPACK_DEFINE_MAP(catalog, schema, name, constraint);
+    MSGPACK_DEFINE_MAP(catalog, schema, name, ignore_not_found, constraint);
   };
 
 }

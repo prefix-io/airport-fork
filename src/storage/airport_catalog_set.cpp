@@ -140,6 +140,28 @@ namespace duckdb
     is_loaded = false;
   }
 
+  void AirportCatalogSet::ReplaceEntry(
+      const string &name,
+      unique_ptr<CatalogEntry> entry)
+  {
+    lock_guard<mutex> l(entry_lock);
+    auto it = entries.find(name);
+    if (it == entries.end())
+    {
+      throw InternalException("AirportCatalogSet::ReplaceEntry called with non-existing entry");
+    }
+
+    if (entry->name == name)
+    {
+      it->second = std::move(entry);
+    }
+    else
+    {
+      entries.erase(name);
+      CreateEntry(std::move(entry));
+    }
+  }
+
   AirportInSchemaSet::AirportInSchemaSet(AirportSchemaEntry &schema) : AirportCatalogSet(schema.ParentCatalog()), schema(schema)
   {
   }

@@ -21,6 +21,10 @@ namespace duckdb
     virtual optional_ptr<CatalogEntry> CreateEntry(unique_ptr<CatalogEntry> entry);
     void ClearEntries();
 
+    void ReplaceEntry(
+        const string &name,
+        unique_ptr<CatalogEntry> entry);
+
   protected:
     virtual void LoadEntries(ClientContext &context) = 0;
 
