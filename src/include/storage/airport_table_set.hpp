@@ -11,14 +11,25 @@ namespace duckdb
   class AirportCurlPool;
   struct AirportTableInfo;
 
-  class AirportTableSet : public AirportInSchemaSet
+  class AirportCatalogSetBase : public AirportInSchemaSet
   {
-  private:
+  protected:
     AirportCurlPool &connection_pool_;
     string cache_directory_;
 
   public:
-    explicit AirportTableSet(AirportCurlPool &connection_pool, AirportSchemaEntry &schema, const string &cache_directory);
+    explicit AirportCatalogSetBase(AirportCurlPool &connection_pool, AirportSchemaEntry &schema, const string &cache_directory)
+        : AirportInSchemaSet(schema), connection_pool_(connection_pool), cache_directory_(cache_directory)
+    {
+    }
+  };
+
+  class AirportTableSet : public AirportCatalogSetBase
+  {
+  public:
+    explicit AirportTableSet(AirportCurlPool &connection_pool, AirportSchemaEntry &schema, const string &cache_directory) : AirportCatalogSetBase(connection_pool, schema, cache_directory)
+    {
+    }
     ~AirportTableSet() {}
 
   public:
@@ -34,33 +45,29 @@ namespace duckdb
     void LoadEntries(ClientContext &context) override;
   };
 
-  class AirportScalarFunctionSet : public AirportInSchemaSet
+  class AirportScalarFunctionSet : public AirportCatalogSetBase
   {
 
   protected:
     void LoadEntries(ClientContext &context) override;
 
-  private:
-    AirportCurlPool &connection_pool_;
-    string cache_directory_;
-
   public:
-    explicit AirportScalarFunctionSet(AirportCurlPool &connection_pool, AirportSchemaEntry &schema, const string &cache_directory);
+    explicit AirportScalarFunctionSet(AirportCurlPool &connection_pool, AirportSchemaEntry &schema, const string &cache_directory) : AirportCatalogSetBase(connection_pool, schema, cache_directory)
+    {
+    }
     ~AirportScalarFunctionSet() {}
   };
 
-  class AirportTableFunctionSet : public AirportInSchemaSet
+  class AirportTableFunctionSet : public AirportCatalogSetBase
   {
 
   protected:
     void LoadEntries(ClientContext &context) override;
 
-  private:
-    AirportCurlPool &connection_pool_;
-    string cache_directory_;
-
   public:
-    explicit AirportTableFunctionSet(AirportCurlPool &connection_pool, AirportSchemaEntry &schema, const string &cache_directory);
+    explicit AirportTableFunctionSet(AirportCurlPool &connection_pool, AirportSchemaEntry &schema, const string &cache_directory) : AirportCatalogSetBase(connection_pool, schema, cache_directory)
+    {
+    }
     ~AirportTableFunctionSet() {}
   };
 

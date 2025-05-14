@@ -71,18 +71,6 @@ namespace std
 namespace duckdb
 {
 
-  AirportTableFunctionSet::AirportTableFunctionSet(AirportCurlPool &connection_pool, AirportSchemaEntry &schema, const string &cache_directory_) : AirportInSchemaSet(schema), connection_pool_(connection_pool), cache_directory_(cache_directory_)
-  {
-  }
-
-  AirportScalarFunctionSet::AirportScalarFunctionSet(AirportCurlPool &connection_pool, AirportSchemaEntry &schema, const string &cache_directory_) : AirportInSchemaSet(schema), connection_pool_(connection_pool), cache_directory_(cache_directory_)
-  {
-  }
-
-  AirportTableSet::AirportTableSet(AirportCurlPool &connection_pool, AirportSchemaEntry &schema, const string &cache_directory_) : AirportInSchemaSet(schema), connection_pool_(connection_pool), cache_directory_(cache_directory_)
-  {
-  }
-
   struct AirportTableCheckConstraints
   {
     std::vector<std::string> constraints;
