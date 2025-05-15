@@ -458,9 +458,13 @@ namespace duckdb
                                          const unique_ptr<AirportSchemaContents> &contents)
   {
     auto parsed_app_metadata = ParseFlightAppMetadata(app_metadata, server_location);
-    if (!(parsed_app_metadata.catalog == catalog_name && parsed_app_metadata.schema == schema_name))
+    if (parsed_app_metadata.catalog != catalog_name)
     {
-      throw IOException("Mismatch in metadata for catalog " + parsed_app_metadata.catalog + " schema " + parsed_app_metadata.schema + " expected " + catalog_name + " schema " + schema_name);
+      throw AirportFlightException(server_location, descriptor, string("Flight metadata catalog name does not match expected value expected '" + catalog_name + "' found '" + parsed_app_metadata.catalog + "'"), "");
+    }
+    if (parsed_app_metadata.schema != schema_name)
+    {
+      throw AirportFlightException(server_location, descriptor, string("Flight metadata schema name does not match expected value, expected '" + schema_name + "' found '" + parsed_app_metadata.schema + "'"), "");
     }
 
     if (parsed_app_metadata.type == "table")
@@ -489,7 +493,7 @@ namespace duckdb
     }
     else
     {
-      throw IOException("Unknown object type in app_metadata: " + parsed_app_metadata.type);
+      throw AirportFlightException(server_location, descriptor, "Unknown object type in app_metadata", parsed_app_metadata.type);
     }
   }
 

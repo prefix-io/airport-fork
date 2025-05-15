@@ -16,8 +16,7 @@
 namespace duckdb
 {
   // Set the connection pool size.
-  AirportSchemaSet::AirportSchemaSet(Catalog &catalog) : AirportCatalogSet(catalog), connection_pool(32),
-                                                         catalog_name(catalog.GetName())
+  AirportSchemaSet::AirportSchemaSet(Catalog &catalog) : AirportCatalogSet(catalog), connection_pool(32)
   {
   }
 
@@ -70,7 +69,9 @@ namespace duckdb
     auto &airport_catalog = catalog.Cast<AirportCatalog>();
     string cache_path = DuckDBHomeDirectory(context);
 
-    auto returned_collection = AirportAPI::GetSchemas(catalog.GetName(), airport_catalog.attach_parameters());
+    // catalog.GetName() is the catalog name even if its been aliased.
+    // airport_catalog.internal_name() is the name of the database as passed ot attach.
+    auto returned_collection = AirportAPI::GetSchemas(airport_catalog.internal_name(), airport_catalog.attach_parameters());
 
     airport_catalog.loaded_catalog_version = returned_collection->version_info;
 
@@ -94,7 +95,7 @@ namespace duckdb
 
       // Populate the on-disk schema cache from the catalog while contents_url.
       auto curl = connection_pool.acquire();
-      AirportAPI::PopulateCatalogSchemaCacheFromURLorContent(curl, *collection, catalog_name, cache_path);
+      AirportAPI::PopulateCatalogSchemaCacheFromURLorContent(curl, *collection, airport_catalog.internal_name(), cache_path);
       connection_pool.release(curl);
     }
     populated_entire_set = true;
@@ -105,11 +106,11 @@ namespace duckdb
 
       if (schema.schema_name().empty())
       {
-        throw InvalidInputException("Airport: catalog '%s' contained a schema with an empty name");
+        throw InvalidInputException("Airport: catalog '%s' contained a schema with an empty name", airport_catalog.internal_name());
       }
       if (!(seen_schema_names.find(schema.schema_name()) == seen_schema_names.end()))
       {
-        throw InvalidInputException("Airport: catalog '%s' contained two or more schemas named %s", catalog_name, schema.schema_name().c_str());
+        throw InvalidInputException("Airport: catalog '%s' contained two or more schemas named %s", airport_catalog.internal_name(), schema.schema_name().c_str());
       }
 
       seen_schema_names.insert(schema.schema_name());
@@ -196,7 +197,7 @@ namespace duckdb
 
     unordered_map<string, string> empty;
     auto real_entry = AirportAPISchema(
-        catalog.GetName(),
+        airport_catalog.internal_name(),
         info.schema,
         "",
         empty,

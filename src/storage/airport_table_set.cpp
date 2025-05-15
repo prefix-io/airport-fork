@@ -216,7 +216,6 @@ namespace duckdb
                                           table.name(),
                                           table,
                                           rowid_type);
-      // printf("Creating a table in catalog %s, schema %s, name %s\n", catalog.GetName().c_str(), schema.name.c_str(), info.table.c_str());
 
       auto table_entry = make_uniq<AirportTableEntry>(catalog, schema, info, rowid_type);
       table_entry->table_data = make_uniq<AirportAPITable>(table);

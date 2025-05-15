@@ -25,7 +25,6 @@ namespace duckdb
 
   private:
     AirportCurlPool connection_pool;
-    string catalog_name;
 
     unique_ptr<AirportSchemaCollection> collection;
 
