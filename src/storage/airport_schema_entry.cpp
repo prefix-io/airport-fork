@@ -211,8 +211,8 @@ namespace duckdb
     case CatalogType::TABLE_FUNCTION_ENTRY:
       return table_functions;
     default:
-      string error_message = "Type not supported for GetCatalogSet: " + CatalogTypeToString(type);
-      throw InternalException(error_message);
+      string error_message = "Airport: Type not supported for GetCatalogSet: " + CatalogTypeToString(type);
+      throw NotImplementedException(error_message);
     }
   }
 

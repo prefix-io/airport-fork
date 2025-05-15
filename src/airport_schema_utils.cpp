@@ -62,7 +62,7 @@ namespace duckdb
       auto &schema = *schema_root.arrow_schema.children[col_idx];
       if (!schema.release)
       {
-        throw InvalidInputException("airport_take_flight: released schema passed");
+        throw InvalidInputException("AirportExamineSchema: released schema passed");
       }
       auto arrow_type = ArrowType::GetArrowLogicalType(config, schema);
 

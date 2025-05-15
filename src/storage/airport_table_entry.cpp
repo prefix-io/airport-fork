@@ -79,7 +79,7 @@ namespace duckdb
 
       if (result_buffer == nullptr)
       {
-        throw InternalException("No flight info returned from alter_Table action");
+        throw AirportFlightException(server_location, "No flight info returned from alter_table action");
       }
 
       std::string_view serialized_flight_info(reinterpret_cast<const char *>(result_buffer->body->data()), result_buffer->body->size());
@@ -195,7 +195,7 @@ namespace duckdb
     case AlterTableType::SET_SORTED_BY:
       throw NotImplementedException("SET SORTED BY is not supported for Airport tables");
     default:
-      throw InternalException("Unrecognized alter table type!");
+      throw NotImplementedException("Unrecognized alter table type!");
     }
   }
 

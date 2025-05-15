@@ -166,7 +166,7 @@ namespace duckdb
           auto expressions = Parser::ParseExpressionList(default_value);
           if (expressions.empty())
           {
-            throw InternalException("Expression list is empty when parsing default value for column %s", column.name);
+            throw AirportFlightException(location.server_location(), location.descriptor(), "Expression list is empty when parsing default value for column", column.name);
           }
           column_def.SetDefaultValue(std::move(expressions[0]));
         }
@@ -269,7 +269,7 @@ namespace duckdb
   {
     if (flight_info->app_metadata().empty())
     {
-      throw InternalException("Flight info app_metadata is empty.");
+      throw AirportFlightException(server_location, flight_info->descriptor(), "The app_metadata field of the flight is empty.", "");
     }
 
     AIRPORT_MSGPACK_UNPACK(AirportSerializedFlightAppMetadata,
@@ -416,7 +416,7 @@ namespace duckdb
 
     if (result_buffer == nullptr)
     {
-      throw InternalException("No flight info returned from create_table action");
+      throw AirportFlightException(server_location, "No flight info returned from create_table action");
     }
 
     std::string_view serialized_flight_info(reinterpret_cast<const char *>(result_buffer->body->data()), result_buffer->body->size());

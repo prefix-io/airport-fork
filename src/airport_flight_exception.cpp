@@ -167,7 +167,7 @@ namespace duckdb
     }
     else
     {
-      throw IOException("Unsupported Arrow Flight descriptor type");
+      throw NotImplementedException("Unsupported Arrow Flight descriptor type");
     }
   }
 

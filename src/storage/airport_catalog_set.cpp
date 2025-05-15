@@ -126,7 +126,7 @@ namespace duckdb
     auto result = entry.get();
     if (result->name.empty())
     {
-      throw InternalException("AirportCatalogSet::CreateEntry called with empty name");
+      throw CatalogException("AirportCatalogSet::CreateEntry called with empty name");
     }
     //    printf("Creating catalog entry\n");
     entries.insert(make_pair(result->name, std::move(entry)));
@@ -148,7 +148,7 @@ namespace duckdb
     auto it = entries.find(name);
     if (it == entries.end())
     {
-      throw InternalException("AirportCatalogSet::ReplaceEntry called with non-existing entry");
+      throw CatalogException("AirportCatalogSet::ReplaceEntry called with non-existing entry");
     }
 
     if (entry->name == name)
