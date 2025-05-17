@@ -359,7 +359,7 @@ namespace duckdb
         "serialize schema");
 
     AirportCreateTableParameters params;
-    params.catalog_name = base.catalog;
+    params.catalog_name = airport_catalog.internal_name();
     params.schema_name = base.schema;
     params.table_name = base.table;
     params.arrow_schema = serialized_schema->ToString();
