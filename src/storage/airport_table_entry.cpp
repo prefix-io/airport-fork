@@ -16,6 +16,7 @@
 #include "airport_request_headers.hpp"
 #include "duckdb/parser/parsed_data/alter_table_info.hpp"
 #include "storage/airport_alter_parameters.hpp"
+#include "duckdb/planner/tableref/bound_at_clause.hpp"
 
 namespace flight = arrow::flight;
 
@@ -208,6 +209,11 @@ namespace duckdb
 
   TableFunction AirportTableEntry::GetScanFunction(ClientContext &context, unique_ptr<FunctionData> &bind_data)
   {
+    throw InternalException("AirportTableEntry::GetScanFunction called without entry lookup info");
+  }
+
+  TableFunction AirportTableEntry::GetScanFunction(ClientContext &context, unique_ptr<FunctionData> &bind_data, const EntryLookupInfo &lookup)
+  {
     auto &db = DatabaseInstance::GetDatabase(context);
     auto &airport_take_flight_function_set = ExtensionUtil::GetTableFunction(db, "airport_take_flight");
     auto airport_take_flight_function = airport_take_flight_function_set.functions.GetFunctionByArguments(
@@ -229,6 +235,13 @@ namespace duckdb
     vector<LogicalType> return_types;
     vector<string> names;
     TableFunctionRef empty_ref;
+
+    auto at = lookup.GetAtClause();
+    if (at)
+    {
+      param_map["at_unit"] = at->Unit();
+      param_map["at_value"] = at->GetValue();
+    }
 
     TableFunctionBindInput bind_input(inputs,
                                       param_map,

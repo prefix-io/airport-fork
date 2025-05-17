@@ -63,6 +63,8 @@ namespace duckdb
 
     TableFunction GetScanFunction(ClientContext &context, unique_ptr<FunctionData> &bind_data) override;
 
+    TableFunction GetScanFunction(ClientContext &context, unique_ptr<FunctionData> &bind_data, const EntryLookupInfo &lookup) override;
+
     TableStorageInfo GetStorageInfo(ClientContext &context) override;
 
     unique_ptr<AirportTableEntry> AlterEntryDirect(ClientContext &context, AlterInfo &info);

@@ -406,7 +406,10 @@ namespace duckdb
     // for each endpoint.
     std::string parameters;
 
-    MSGPACK_DEFINE_MAP(json_filters, column_ids, parameters)
+    std::string at_unit;
+    std::string at_value;
+
+    MSGPACK_DEFINE_MAP(json_filters, column_ids, parameters, at_unit, at_value)
   };
 
   static unique_ptr<GlobalTableFunctionState>
@@ -443,6 +446,8 @@ namespace duckdb
     parameters.json_filters = bind_data.json_filters;
     parameters.column_ids = bind_data.column_ids;
     parameters.parameters = table_function_parameters.parameters;
+    parameters.at_unit = bind_data.take_flight_params().at_unit();
+    parameters.at_value = bind_data.take_flight_params().at_value();
 
     msgpack::sbuffer parameters_packed_buffer;
     msgpack::pack(parameters_packed_buffer, parameters);

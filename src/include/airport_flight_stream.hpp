@@ -65,7 +65,10 @@ namespace duckdb
     std::string parameters;
     std::string table_input_schema;
 
-    MSGPACK_DEFINE_MAP(descriptor, parameters, table_input_schema)
+    std::string at_unit;
+    std::string at_value;
+
+    MSGPACK_DEFINE_MAP(descriptor, parameters, table_input_schema, at_unit, at_value)
   };
 
   class AirportTakeFlightParameters
@@ -100,6 +103,16 @@ namespace duckdb
       return ticket_;
     }
 
+    const string &at_unit() const
+    {
+      return at_unit_;
+    }
+
+    const string &at_value() const
+    {
+      return at_value_;
+    }
+
     const std::unordered_map<string, std::vector<string>> &user_supplied_headers() const
     {
       return user_supplied_headers_;
@@ -117,6 +130,9 @@ namespace duckdb
     // Override the ticket supplied from GetFlightInfo.
     // this is supplied via a named parameter.
     string ticket_;
+
+    string at_unit_;
+    string at_value_;
     std::unordered_map<string, std::vector<string>> user_supplied_headers_;
   };
 

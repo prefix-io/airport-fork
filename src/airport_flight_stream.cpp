@@ -552,6 +552,20 @@ namespace duckdb
       {
         ticket_ = StringValue::Get(kv.second);
       }
+      else if (loption == "at_unit")
+      {
+        if (!kv.second.IsNull())
+        {
+          at_unit_ = StringValue::Get(kv.second);
+        }
+      }
+      else if (loption == "at_value")
+      {
+        if (!kv.second.IsNull())
+        {
+          at_value_ = kv.second.ToString();
+        }
+      }
       else if (loption == "headers")
       {
         // Now we need to parse out the map contents.

@@ -126,7 +126,11 @@ namespace duckdb
         // get the flight info that way, since it allows us to serialize
         // all of the data we need to send instead of just the flight name.
 
-        AIRPORT_MSGPACK_ACTION_SINGLE_PARAMETER(action, "table_function_flight_info", table_function_parameters);
+        AirportTableFunctionFlightInfoParameters augmented_parameters(*table_function_parameters);
+
+        augmented_parameters.at_unit = take_flight_params.at_unit();
+        augmented_parameters.at_value = take_flight_params.at_value();
+        AIRPORT_MSGPACK_ACTION_SINGLE_PARAMETER(action, "table_function_flight_info", augmented_parameters);
 
         AIRPORT_ASSIGN_OR_RAISE_LOCATION(auto action_results, flight_client->DoAction(call_options, action), server_location, "airport_table_function_flight_info");
 
@@ -568,7 +572,10 @@ namespace duckdb
     std::string table_function_parameters;
     std::string table_function_input_schema;
 
-    MSGPACK_DEFINE_MAP(json_filters, column_ids, table_function_parameters, table_function_input_schema)
+    std::string at_unit;
+    std::string at_value;
+
+    MSGPACK_DEFINE_MAP(json_filters, column_ids, table_function_parameters, table_function_input_schema, at_unit, at_value)
   };
 
   // static string BuildCompressedTicketMetadata(const string &json_filters, const vector<idx_t> &column_ids, uint32_t *uncompressed_length, const string &location, const flight::FlightDescriptor &descriptor)
@@ -624,6 +631,8 @@ namespace duckdb
     endpoints_request.parameters.column_ids = column_ids;
     endpoints_request.parameters.table_function_parameters = table_function_parameters;
     endpoints_request.parameters.table_function_input_schema = table_function_input_schema;
+    endpoints_request.parameters.at_unit = take_flight_params.at_unit();
+    endpoints_request.parameters.at_value = take_flight_params.at_value();
 
     AIRPORT_MSGPACK_ACTION_SINGLE_PARAMETER(action, "endpoints", endpoints_request);
 
@@ -1060,6 +1069,9 @@ namespace duckdb
     take_flight_function_with_descriptor.named_parameters["secret"] = LogicalType::VARCHAR;
     take_flight_function_with_descriptor.named_parameters["ticket"] = LogicalType::BLOB;
     take_flight_function_with_descriptor.named_parameters["headers"] = LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR);
+    take_flight_function_with_descriptor.named_parameters["at_unit"] = LogicalType::VARCHAR;
+    take_flight_function_with_descriptor.named_parameters["at_value"] = LogicalType::ANY;
+
     take_flight_function_with_descriptor.pushdown_complex_filter = AirportTakeFlightComplexFilterPushdown;
 
     take_flight_function_with_descriptor.cardinality = AirportTakeFlightCardinality;
@@ -1079,6 +1091,8 @@ namespace duckdb
 
     take_flight_function_with_pointer.named_parameters["auth_token"] = LogicalType::VARCHAR;
     take_flight_function_with_pointer.named_parameters["secret"] = LogicalType::VARCHAR;
+    take_flight_function_with_pointer.named_parameters["at_unit"] = LogicalType::VARCHAR;
+    take_flight_function_with_pointer.named_parameters["at_value"] = LogicalType::ANY;
     take_flight_function_with_pointer.pushdown_complex_filter = AirportTakeFlightComplexFilterPushdown;
 
     // Add support for optional named paraemters that would be appended to the descriptor
