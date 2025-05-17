@@ -559,7 +559,13 @@ namespace duckdb
     std::string json_filters;
     std::vector<idx_t> column_ids;
 
-    MSGPACK_DEFINE_MAP(json_filters, column_ids)
+    // The parameters to the table function, which should
+    // be included in the opaque ticket data returned
+    // for each endpoint.
+    std::string table_function_parameters;
+    std::string table_function_input_schema;
+
+    MSGPACK_DEFINE_MAP(json_filters, column_ids, table_function_parameters, table_function_input_schema)
   };
 
   // static string BuildCompressedTicketMetadata(const string &json_filters, const vector<idx_t> &column_ids, uint32_t *uncompressed_length, const string &location, const flight::FlightDescriptor &descriptor)
@@ -592,7 +598,9 @@ namespace duckdb
       const flight::FlightDescriptor &descriptor,
       const std::shared_ptr<flight::FlightClient> &flight_client,
       const std::string &json_filters,
-      const vector<idx_t> &column_ids)
+      const vector<idx_t> &column_ids,
+      const std::string &table_function_parameters,
+      const std::string &table_function_input_schema)
   {
     vector<flight::FlightEndpoint> endpoints;
     arrow::flight::FlightCallOptions call_options;
@@ -611,6 +619,8 @@ namespace duckdb
 
     endpoints_request.parameters.json_filters = json_filters;
     endpoints_request.parameters.column_ids = column_ids;
+    endpoints_request.parameters.table_function_parameters = table_function_parameters;
+    endpoints_request.parameters.table_function_input_schema = table_function_input_schema;
 
     AIRPORT_MSGPACK_ACTION_SINGLE_PARAMETER(action, "endpoints", endpoints_request);
 
@@ -691,7 +701,9 @@ namespace duckdb
                                   bind_data.descriptor(),
                                   flight_client,
                                   bind_data.json_filters,
-                                  input.column_ids),
+                                  input.column_ids,
+                                  bind_data.table_function_parameters().has_value() ? bind_data.table_function_parameters()->parameters : "",
+                                  bind_data.table_function_parameters().has_value() ? bind_data.table_function_parameters()->table_input_schema : ""),
         projection_ids,
         scanned_types,
         input);

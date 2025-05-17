@@ -295,9 +295,6 @@ namespace duckdb
     // based on this name.
     const string action_name_;
 
-    // The location of the flight server that will prduce the data.
-    const string location_;
-
   public:
     explicit AirportAPITableFunction(
         const std::string &server_location,
@@ -320,16 +317,6 @@ namespace duckdb
     const string &description() const
     {
       return description_;
-    }
-
-    const std::string &action_name() const
-    {
-      return action_name_;
-    }
-
-    const std::string &location() const
-    {
-      return location_;
     }
   };
 

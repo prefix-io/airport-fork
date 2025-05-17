@@ -61,13 +61,11 @@ namespace duckdb
 
   struct AirportTableFunctionFlightInfoParameters
   {
-    std::string catalog;
-    std::string schema_name;
-    std::string action_name;
+    std::string descriptor;
     std::string parameters;
     std::string table_input_schema;
 
-    MSGPACK_DEFINE_MAP(catalog, schema_name, action_name, parameters, table_input_schema)
+    MSGPACK_DEFINE_MAP(descriptor, parameters, table_input_schema)
   };
 
   class AirportTakeFlightParameters

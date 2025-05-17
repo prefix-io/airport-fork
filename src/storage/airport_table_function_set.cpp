@@ -61,25 +61,6 @@ namespace duckdb
     }
   };
 
-  // Create a new arrow schema where all is_table_fields are removed, since they will be
-  // serialized outside of the parameters.
-  static std::shared_ptr<arrow::Schema> AirportSchemaWithoutTableFields(std::shared_ptr<arrow::Schema> schema)
-  {
-    vector<std::shared_ptr<arrow::Field>> keep_fields;
-    for (const auto &field : schema->fields())
-    {
-      auto metadata = field->metadata();
-
-      if (metadata == nullptr || !metadata->Contains("is_table_input"))
-      {
-        keep_fields.push_back(field);
-      }
-    }
-
-    // Create a new schema with the remaining fields
-    return arrow::schema(keep_fields);
-  }
-
   // Serialize data to a arrow::Buffer
   static std::shared_ptr<arrow::Buffer> AirportDynamicSerializeParameters(std::shared_ptr<arrow::Schema> input_schema,
                                                                           ClientContext &context,
@@ -103,21 +84,23 @@ namespace duckdb
     source_indexes.reserve(column_count);
 
     auto &config = DBConfig::GetConfig(context);
-
+    int seen_named_parameters = 0;
+    vector<LogicalType> input_schema_any_real_types;
     for (idx_t col_idx = 0;
          col_idx < column_count; col_idx++)
     {
-      auto &schema = *schema_root.arrow_schema.children[col_idx];
-      if (!schema.release)
+      auto &schema_field = *schema_root.arrow_schema.children[col_idx];
+      if (!schema_field.release)
       {
         throw InvalidInputException("airport_dynamic_table_bind: released schema passed");
       }
-      auto name = AirportNameForField(schema.name, col_idx);
+      auto name = AirportNameForField(schema_field.name, col_idx);
 
       // If we have a table input skip over it.
-      if (schema.metadata != nullptr)
+      bool is_any_type = false;
+      if (schema_field.metadata != nullptr)
       {
-        auto column_metadata = ArrowSchemaMetadata(schema.metadata);
+        auto column_metadata = ArrowSchemaMetadata(schema_field.metadata);
 
         auto is_table_input = column_metadata.GetOption("is_table_input");
         if (!is_table_input.empty())
@@ -125,17 +108,38 @@ namespace duckdb
           source_indexes.push_back(-1);
           continue;
         }
+        auto is_any_type_metadata = column_metadata.GetOption("is_any_type");
+        if (!is_any_type_metadata.empty())
+        {
+          is_any_type = true;
+        }
+
+        if (!column_metadata.GetOption("is_named_parameter").empty())
+        {
+          seen_named_parameters += 1;
+        }
       }
       input_schema_names.push_back(name);
-      auto arrow_type = ArrowType::GetArrowLogicalType(config, schema);
-      input_schema_types.push_back(arrow_type->GetDuckType());
+      auto arrow_type = ArrowType::GetArrowLogicalType(config, schema_field);
+      if (is_any_type)
+      {
+        auto &found_type = input.inputs[col_idx - seen_named_parameters].type();
+        input_schema_types.push_back(found_type);
+        input_schema_any_real_types.push_back(found_type);
+      }
+      else
+      {
+        input_schema_types.push_back(arrow_type->GetDuckType());
+      }
       // Where does this field come from.
       source_indexes.push_back(col_idx);
     }
 
     // We need to produce a schema that doesn't contain the is_table_input fields.
 
-    auto appender = make_uniq<ArrowAppender>(input_schema_types, input_schema_types.size(), context.GetClientProperties(),
+    auto appender = make_uniq<ArrowAppender>(input_schema_types,
+                                             input_schema_types.size(),
+                                             context.GetClientProperties(),
                                              ArrowTypeExtensionData::GetExtensionTypes(context, input_schema_types));
 
     // Now we need to make a DataChunk from the input bind data so that we can calle the appender.
@@ -146,19 +150,19 @@ namespace duckdb
     input_chunk.SetCardinality(1);
 
     // Now how do we populate the input_chunk with the input data?
-    int seen_named_parameters = 0;
+    seen_named_parameters = 0;
     for (idx_t col_idx = 0;
          col_idx < column_count; col_idx++)
     {
-      auto &schema = *schema_root.arrow_schema.children[col_idx];
-      if (!schema.release)
+      auto &schema_child = *schema_root.arrow_schema.children[col_idx];
+      if (!schema_child.release)
       {
         throw InvalidInputException("airport_dynamic_table_bind: released schema passed");
       }
 
       // So if the parameter is named, we'd get that off of the metadata
       // otherwise its positional.
-      auto metadata = ArrowSchemaMetadata(schema.metadata);
+      auto metadata = ArrowSchemaMetadata(schema_child.metadata);
 
       if (!metadata.GetOption("is_table_input").empty())
       {
@@ -167,7 +171,7 @@ namespace duckdb
 
       if (!metadata.GetOption("is_named_parameter").empty())
       {
-        input_chunk.data[col_idx].SetValue(0, input.named_parameters[schema.name]);
+        input_chunk.data[col_idx].SetValue(0, input.named_parameters[schema_child.name]);
         seen_named_parameters += 1;
       }
       else
@@ -183,7 +187,23 @@ namespace duckdb
     appender->Append(input_chunk, 0, input_chunk.size(), input_chunk.size());
     ArrowArray arr = appender->Finalize();
 
-    auto schema_without_table_fields = AirportSchemaWithoutTableFields(input_schema);
+    auto client_properties = context.GetClientProperties();
+
+    // Create a new schema from the logical types and names that were used,
+    // this will apply the actual types if any of the fields are marked as
+    // being ANY types.
+    ArrowSchema temp_schema;
+    ArrowConverter::ToArrowSchema(&temp_schema, input_schema_types,
+                                  input_schema_names, client_properties);
+
+    std::shared_ptr<arrow::Schema> schema_without_table_fields;
+
+    // Export the schema from the C side to the C++ side.
+    AIRPORT_ASSIGN_OR_RAISE_CONTAINER(
+        schema_without_table_fields,
+        arrow::ImportSchema(&temp_schema),
+        &location_descriptor,
+        "ExportSchema");
 
     AIRPORT_ASSIGN_OR_RAISE_CONTAINER(
         auto record_batch,
@@ -235,10 +255,13 @@ namespace duckdb
 
     // Then call the DoAction get_dynamic_flight_info with those arguments.
     AirportTableFunctionFlightInfoParameters tf_params;
+
+    AIRPORT_ASSIGN_OR_RAISE_CONTAINER(
+        tf_params.descriptor,
+        function_info.function->descriptor().SerializeToString(),
+        function_info.function,
+        "serialize flight descriptor");
     tf_params.parameters = buffer->ToString();
-    tf_params.catalog = function_info.function->catalog_name();
-    tf_params.schema_name = function_info.function->schema_name();
-    tf_params.action_name = function_info.function->action_name();
 
     // If we are doing an table in_out function we need to serialize the schema of the input.
 
@@ -269,7 +292,7 @@ namespace duckdb
       tf_params.table_input_schema = serialized_table_in_schema;
     }
 
-    auto params = AirportTakeFlightParameters(function_info.function->location(),
+    auto params = AirportTakeFlightParameters(function_info.function->server_location(),
                                               context,
                                               input);
 
@@ -331,20 +354,27 @@ namespace duckdb
 
       auto metadata = ArrowSchemaMetadata(schema_item.metadata);
 
+      bool is_any_type = false;
+      if (!metadata.GetOption("is_any_type").empty())
+      {
+        is_any_type = true;
+      }
+      auto actual_type = is_any_type ? LogicalType(LogicalTypeId::ANY) : arrow_type->GetDuckType();
+
       if (!metadata.GetOption("is_table_input").empty())
       {
         result.all.emplace_back(LogicalType(LogicalTypeId::TABLE));
       }
       else
       {
-        result.all.emplace_back(arrow_type->GetDuckType());
+        result.all.emplace_back(actual_type);
       }
 
       result.all_names.emplace_back(string(schema_item.name));
 
       if (!metadata.GetOption("is_named_parameter").empty())
       {
-        result.named[schema_item.name] = arrow_type->GetDuckType();
+        result.named[schema_item.name] = actual_type;
       }
       else
       {
@@ -354,7 +384,7 @@ namespace duckdb
         }
         else
         {
-          result.positional.emplace_back(arrow_type->GetDuckType());
+          result.positional.emplace_back(actual_type);
         }
         result.positional_names.push_back(string(schema_item.name));
       }
@@ -385,7 +415,6 @@ namespace duckdb
 
     D_ASSERT(bind_data.table_function_parameters() != std::nullopt);
     auto &table_function_parameters = *bind_data.table_function_parameters();
-    call_options.headers.emplace_back("airport-action-name", table_function_parameters.action_name);
 
     // Indicate if the caller is interested in data being returned.
     call_options.headers.emplace_back("return-chunks", "1");
@@ -652,6 +681,7 @@ namespace duckdb
         // These input types are available since they are specified in the metadata, but the
         // schema that is returned likely should be requested dynamically from the dynamic
         // flight function.
+
         auto input_types = AirportSchemaToLogicalTypesWithNaming(context, function.input_schema(), function);
 
         // Determine if we have a table input.
@@ -691,7 +721,6 @@ namespace duckdb
           table_func.in_out_function_final = AirportTakeFlightInOutFinalize;
         }
 
-        // Add all of t
         for (auto &named_pair : input_types.named)
         {
           table_func.named_parameters.emplace(named_pair.first, named_pair.second);

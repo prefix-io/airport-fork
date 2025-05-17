@@ -43,6 +43,8 @@
 #include "storage/airport_alter_parameters.hpp"
 #include "storage/airport_scalar_function_set.hpp"
 
+#include "duckdb/main/extension_util.hpp"
+
 namespace duckdb
 {
 
@@ -173,10 +175,13 @@ namespace duckdb
       info.catalog = pair.first.catalog_name;
       info.schema = pair.first.schema_name;
 
+      info.internal = true;
+
       auto function_entry = make_uniq_base<StandardEntry, ScalarFunctionCatalogEntry>(
           catalog,
           schema,
           info.Cast<CreateScalarFunctionInfo>());
+
       CreateEntry(std::move(function_entry));
     }
   }
