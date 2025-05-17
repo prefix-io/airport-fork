@@ -66,14 +66,19 @@ namespace duckdb
     TableStorageInfo GetStorageInfo(ClientContext &context) override;
 
     unique_ptr<AirportTableEntry> AlterEntryDirect(ClientContext &context, AlterInfo &info);
-
     // void BindUpdateConstraints(Binder &binder, LogicalGet &get, LogicalProjection &proj, LogicalUpdate &update,
     //                            ClientContext &context) override;
+
+    Catalog &GetCatalog() const
+    {
+      return catalog_;
+    }
+
   private:
     //! A logical type for the rowid of this table.
     const LogicalType rowid_type;
 
-    Catalog &catalog;
+    Catalog &catalog_;
   };
 
 } // namespace duckdb

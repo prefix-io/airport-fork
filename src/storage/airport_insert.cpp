@@ -83,29 +83,28 @@ namespace duckdb
   public:
     AirportInsertLocalState(ClientContext &context,
                             const vector<LogicalType> &types,
-                            //                            const TableCatalogEntry &table,
                             const vector<unique_ptr<Expression>> &bound_defaults,
                             const vector<unique_ptr<BoundConstraint>> &bound_constraints)
-        : default_executor(context, bound_defaults), bound_constraints(bound_constraints)
+        : default_executor(context, bound_defaults), bound_constraints_(bound_constraints)
     {
       returning_data_chunk.Initialize(Allocator::Get(context), types);
     }
 
     ConstraintState &GetConstraintState(TableCatalogEntry &table, TableCatalogEntry &tableref);
-    ExpressionExecutor default_executor;
-    const vector<unique_ptr<BoundConstraint>> &bound_constraints;
-    unique_ptr<ConstraintState> constraint_state;
+    std::optional<ExpressionExecutor> default_executor;
+    const vector<unique_ptr<BoundConstraint>> &bound_constraints_;
+    unique_ptr<ConstraintState> constraint_state_;
 
     DataChunk returning_data_chunk;
   };
 
   ConstraintState &AirportInsertLocalState::GetConstraintState(TableCatalogEntry &table, TableCatalogEntry &tableref)
   {
-    if (!constraint_state)
+    if (!constraint_state_)
     {
-      constraint_state = make_uniq<ConstraintState>(table, bound_constraints);
+      constraint_state_ = make_uniq<ConstraintState>(table, bound_constraints_);
     }
-    return *constraint_state;
+    return *constraint_state_;
   }
 
   static pair<vector<string>, vector<LogicalType>> AirportGetInsertColumns(const AirportInsert &insert, AirportTableEntry &entry)
@@ -159,7 +158,7 @@ namespace duckdb
 
     auto insert_global_state = make_uniq<AirportInsertGlobalState>(context, *table, GetTypes(), return_chunk);
 
-    const auto &transaction = AirportTransaction::Get(context, insert_table->catalog);
+    const auto &transaction = AirportTransaction::Get(context, table->GetCatalog());
     // auto &connection = transaction.GetConnection();
     auto [send_names, send_types] = AirportGetInsertColumns(*this, *table);
 

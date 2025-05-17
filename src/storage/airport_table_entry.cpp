@@ -23,13 +23,13 @@ namespace duckdb
 {
 
   AirportTableEntry::AirportTableEntry(Catalog &catalog, SchemaCatalogEntry &schema, CreateTableInfo &info, const LogicalType &rowid_type)
-      : TableCatalogEntry(catalog, schema, info), rowid_type(rowid_type), catalog(catalog)
+      : TableCatalogEntry(catalog, schema, info), rowid_type(rowid_type), catalog_(catalog)
   {
     this->internal = false;
   }
 
   AirportTableEntry::AirportTableEntry(Catalog &catalog, SchemaCatalogEntry &schema, AirportTableInfo &info, const LogicalType &rowid_type)
-      : TableCatalogEntry(catalog, schema, *info.create_info), rowid_type(rowid_type), catalog(catalog)
+      : TableCatalogEntry(catalog, schema, *info.create_info), rowid_type(rowid_type), catalog_(catalog)
   {
     this->internal = false;
   }
@@ -39,7 +39,7 @@ namespace duckdb
     D_ASSERT(info.type == AlterType::ALTER_TABLE);
     auto &table_alter = info.Cast<AlterTableInfo>();
 
-    auto &airport_catalog = catalog.Cast<AirportCatalog>();
+    auto &airport_catalog = catalog_.Cast<AirportCatalog>();
 
     arrow::flight::FlightCallOptions call_options;
 
@@ -216,7 +216,7 @@ namespace duckdb
 
     D_ASSERT(table_data);
 
-    auto &transaction = AirportTransaction::Get(context, catalog);
+    auto &transaction = AirportTransaction::Get(context, catalog_);
 
     // Rusty: this is the place where the transformation happens between table functions and tables.
     vector<Value> inputs = {
