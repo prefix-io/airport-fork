@@ -91,7 +91,7 @@ namespace duckdb
     }
 
     ConstraintState &GetConstraintState(TableCatalogEntry &table, TableCatalogEntry &tableref);
-    std::optional<ExpressionExecutor> default_executor;
+    ExpressionExecutor default_executor;
     const vector<unique_ptr<BoundConstraint>> &bound_constraints_;
     unique_ptr<ConstraintState> constraint_state_;
 
