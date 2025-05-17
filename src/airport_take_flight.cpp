@@ -357,6 +357,9 @@ namespace duckdb
 
     if (global_state.CanRemoveFilterColumns())
     {
+      // So state.all_columns is a smaller DataChunk, that
+      // should just contain the number of columns taht are in the all
+      // columns vector.
       state.all_columns.Reset();
       state.all_columns.SetCardinality(output_size);
       if (output_size > 0)
@@ -426,7 +429,7 @@ namespace duckdb
     }
   }
 
-  static unique_ptr<NodeStatistics> airport_take_flight_cardinality(ClientContext &context, const FunctionData *data)
+  unique_ptr<NodeStatistics> AirportTakeFlightCardinality(ClientContext &context, const FunctionData *data)
   {
     // To estimate the cardinality of the flight, we can peek at the flight information
     // that was retrieved during the bind function.
@@ -444,8 +447,8 @@ namespace duckdb
     return make_uniq<NodeStatistics>(100000);
   }
 
-  static void take_flight_complex_filter_pushdown(ClientContext &context, LogicalGet &get, FunctionData *bind_data_p,
-                                                  vector<unique_ptr<Expression>> &filters)
+  void AirportTakeFlightComplexFilterPushdown(ClientContext &context, LogicalGet &get, FunctionData *bind_data_p,
+                                              vector<unique_ptr<Expression>> &filters)
   {
     auto allocator = AirportJSONAllocator(BufferAllocator::Get(context));
 
@@ -715,7 +718,7 @@ namespace duckdb
     return result;
   }
 
-  static double take_flight_scan_progress(ClientContext &, const FunctionData *data, const GlobalTableFunctionState *global_state)
+  double AirportTakeFlightScanProgress(ClientContext &, const FunctionData *data, const GlobalTableFunctionState *global_state)
   {
     return data->Cast<AirportTakeFlightBindData>().total_progress();
   }
@@ -980,13 +983,11 @@ namespace duckdb
 
     local_state.column_ids = input.column_ids;
     local_state.filters = (TableFilterSet *)input.filters.get();
-    if (!bind_data.projection_pushdown_enabled)
+
+    // Projection pushdown is always enabled.
+    D_ASSERT(bind_data.projection_pushdown_enabled);
+    if (!input.projection_ids.empty())
     {
-      local_state.column_ids.clear();
-    }
-    else if (!input.projection_ids.empty())
-    {
-      //      auto &asgs = global_state_p->Cast<AirportArrowScanGlobalState>();
       local_state.all_columns.Initialize(context, global_state.scanned_types());
     }
     if (!AirportArrowScanParallelStateNext(local_state,
@@ -1031,7 +1032,7 @@ namespace duckdb
     return AirportArrowScanInitLocalInternal(context.client, input, global_state_p);
   }
 
-  static BindInfo airport_take_flight_get_bind_info(const optional_ptr<FunctionData> bind_data_p)
+  static BindInfo AirportTakeFlightGetBindInfo(const optional_ptr<FunctionData> bind_data_p)
   {
     auto &bind_data = bind_data_p->Cast<AirportTakeFlightBindData>();
     // I know I'm dropping the const here, fix this later.
@@ -1059,13 +1060,13 @@ namespace duckdb
     take_flight_function_with_descriptor.named_parameters["secret"] = LogicalType::VARCHAR;
     take_flight_function_with_descriptor.named_parameters["ticket"] = LogicalType::BLOB;
     take_flight_function_with_descriptor.named_parameters["headers"] = LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR);
-    take_flight_function_with_descriptor.pushdown_complex_filter = take_flight_complex_filter_pushdown;
+    take_flight_function_with_descriptor.pushdown_complex_filter = AirportTakeFlightComplexFilterPushdown;
 
-    take_flight_function_with_descriptor.cardinality = airport_take_flight_cardinality;
+    take_flight_function_with_descriptor.cardinality = AirportTakeFlightCardinality;
     //    take_flight_function_with_descriptor.get_batch_index = nullptr;
     take_flight_function_with_descriptor.projection_pushdown = true;
     take_flight_function_with_descriptor.filter_pushdown = false;
-    take_flight_function_with_descriptor.table_scan_progress = take_flight_scan_progress;
+    take_flight_function_with_descriptor.table_scan_progress = AirportTakeFlightScanProgress;
     take_flight_function_set.AddFunction(take_flight_function_with_descriptor);
 
     auto take_flight_function_with_pointer = TableFunction(
@@ -1078,18 +1079,18 @@ namespace duckdb
 
     take_flight_function_with_pointer.named_parameters["auth_token"] = LogicalType::VARCHAR;
     take_flight_function_with_pointer.named_parameters["secret"] = LogicalType::VARCHAR;
-    take_flight_function_with_pointer.pushdown_complex_filter = take_flight_complex_filter_pushdown;
+    take_flight_function_with_pointer.pushdown_complex_filter = AirportTakeFlightComplexFilterPushdown;
 
     // Add support for optional named paraemters that would be appended to the descriptor
     // of the flight, ideally parameters would be JSON encoded.
 
-    take_flight_function_with_pointer.cardinality = airport_take_flight_cardinality;
+    take_flight_function_with_pointer.cardinality = AirportTakeFlightCardinality;
     //    take_flight_function_with_pointer.get_batch_index = nullptr;
     take_flight_function_with_pointer.projection_pushdown = true;
     take_flight_function_with_pointer.filter_pushdown = false;
-    take_flight_function_with_pointer.table_scan_progress = take_flight_scan_progress;
-    take_flight_function_with_pointer.statistics = airport_take_flight_statistics;
-    take_flight_function_with_pointer.get_bind_info = airport_take_flight_get_bind_info;
+    take_flight_function_with_pointer.table_scan_progress = AirportTakeFlightScanProgress;
+    take_flight_function_with_pointer.statistics = AirportTakeFlightStatistics;
+    take_flight_function_with_pointer.get_bind_info = AirportTakeFlightGetBindInfo;
 
     take_flight_function_set.AddFunction(take_flight_function_with_pointer);
 

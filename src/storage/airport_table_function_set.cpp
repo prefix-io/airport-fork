@@ -396,6 +396,19 @@ namespace duckdb
   {
   };
 
+  struct AirportTableFunctionInOutParameters
+  {
+    std::string json_filters;
+    std::vector<idx_t> column_ids;
+
+    // The parameters to the table function, which should
+    // be included in the opaque ticket data returned
+    // for each endpoint.
+    std::string parameters;
+
+    MSGPACK_DEFINE_MAP(json_filters, column_ids, parameters)
+  };
+
   static unique_ptr<GlobalTableFunctionState>
   AirportDynamicTableInOutGlobalInit(ClientContext &context,
                                      TableFunctionInitInput &input)
@@ -424,10 +437,27 @@ namespace duckdb
     AIRPORT_ASSIGN_OR_RAISE_CONTAINER(
         auto exchange_result,
         flight_client->DoExchange(call_options, bind_data.descriptor()),
-        &bind_data, "");
+        &bind_data, "AirportDynamicTableInOutGlobalInit DoExchange");
 
-    // We have the serialized schema that we sent the server earlier so deserialize so we can
-    // send it again.
+    AirportTableFunctionInOutParameters parameters;
+    parameters.json_filters = bind_data.json_filters;
+    parameters.column_ids = bind_data.column_ids;
+    parameters.parameters = table_function_parameters.parameters;
+
+    msgpack::sbuffer parameters_packed_buffer;
+    msgpack::pack(parameters_packed_buffer, parameters);
+
+    std::shared_ptr<arrow::Buffer> parameters_buffer = std::make_shared<arrow::Buffer>(
+        reinterpret_cast<const uint8_t *>(parameters_packed_buffer.data()),
+        parameters_packed_buffer.size());
+
+    AIRPORT_ARROW_ASSERT_OK_CONTAINER(
+        exchange_result.writer->WriteMetadata(parameters_buffer),
+        &bind_data,
+        "airport_dynamic_table_function: write metadata with parameters");
+
+    // Thsi is correct, since we are writing to the server,
+    // so the writer has the schema of the table_input_schema.
     std::shared_ptr<arrow::Buffer> serialized_schema_buffer = std::make_shared<arrow::Buffer>(
         reinterpret_cast<const uint8_t *>(table_function_parameters.table_input_schema.data()),
         table_function_parameters.table_input_schema.size());
@@ -440,16 +470,6 @@ namespace duckdb
         arrow::ipc::ReadSchema(buffer_reader.get(), &in_memo),
         &bind_data, "ReadSchema");
 
-    // Send the input set of parameters to the server.
-    std::shared_ptr<arrow::Buffer> parameters_buffer = std::make_shared<arrow::Buffer>(
-        reinterpret_cast<const uint8_t *>(table_function_parameters.parameters.data()),
-        table_function_parameters.parameters.size());
-
-    AIRPORT_ARROW_ASSERT_OK_CONTAINER(
-        exchange_result.writer->WriteMetadata(parameters_buffer),
-        &bind_data,
-        "airport_dynamic_table_function: write metadata with parameters");
-
     // Tell the server the schema that we will be using to write data.
     AIRPORT_ARROW_ASSERT_OK_CONTAINER(
         exchange_result.writer->Begin(send_schema),
@@ -458,6 +478,7 @@ namespace duckdb
 
     vector<column_t> column_ids;
 
+    // This is the schema from the server, the output.
     AIRPORT_ASSIGN_OR_RAISE_CONTAINER(auto read_schema,
                                       exchange_result.reader->GetSchema(),
                                       &bind_data,
@@ -707,6 +728,12 @@ namespace duckdb
               AirportDynamicTableBind,
               AirportArrowScanInitGlobal,
               AirportArrowScanInitLocal);
+          table_func.projection_pushdown = true;
+          table_func.filter_pushdown = false;
+          table_func.pushdown_complex_filter = AirportTakeFlightComplexFilterPushdown;
+          table_func.cardinality = AirportTakeFlightCardinality;
+          table_func.statistics = AirportTakeFlightStatistics;
+          table_func.table_scan_progress = AirportTakeFlightScanProgress;
         }
         else
         {
@@ -720,6 +747,12 @@ namespace duckdb
 
           table_func.in_out_function = AirportTakeFlightInOut;
           table_func.in_out_function_final = AirportTakeFlightInOutFinalize;
+
+          // Don't allow projection pushdown here, since it causes
+          // issues with the fields being returned.
+          table_func.projection_pushdown = false;
+          table_func.filter_pushdown = false;
+          table_func.pushdown_complex_filter = AirportTakeFlightComplexFilterPushdown;
         }
 
         for (auto &named_pair : input_types.named)

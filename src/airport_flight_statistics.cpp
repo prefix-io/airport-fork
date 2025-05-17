@@ -138,7 +138,7 @@ namespace duckdb
     MSGPACK_DEFINE_MAP(has_null, has_no_null, distinct_count, numeric_stats, string_stats)
   };
 
-  unique_ptr<BaseStatistics> airport_take_flight_statistics(ClientContext &context, const FunctionData *bind_data, column_t column_index)
+  unique_ptr<BaseStatistics> AirportTakeFlightStatistics(ClientContext &context, const FunctionData *bind_data, column_t column_index)
   {
     auto &data = bind_data->Cast<AirportTakeFlightBindData>();
 

@@ -112,6 +112,12 @@ namespace duckdb
 
   std::string AirportNameForField(const string &name, const idx_t col_idx);
 
+  void AirportTakeFlightComplexFilterPushdown(ClientContext &context, LogicalGet &get, FunctionData *bind_data_p,
+                                              vector<unique_ptr<Expression>> &filters);
+  unique_ptr<NodeStatistics> AirportTakeFlightCardinality(ClientContext &context, const FunctionData *data);
+  unique_ptr<BaseStatistics> AirportTakeFlightStatistics(ClientContext &context, const FunctionData *bind_data, column_t column_index);
+  double AirportTakeFlightScanProgress(ClientContext &, const FunctionData *data, const GlobalTableFunctionState *global_state);
+
   unique_ptr<LocalTableFunctionState> AirportArrowScanInitLocal(ExecutionContext &context,
                                                                 TableFunctionInitInput &input,
                                                                 GlobalTableFunctionState *global_state_p);
