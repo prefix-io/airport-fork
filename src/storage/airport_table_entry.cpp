@@ -62,9 +62,9 @@ namespace duckdb
       throw CatalogException("Can only modify table with ALTER TABLE statement");
     }
 
-    auto perform_simple_action = [&](const std::string &action_name, const auto &info, auto &context, const auto &server_location, auto &&make_params)
+    auto perform_simple_action = [&](const std::string &action_name, const auto &info, auto &catalog, auto &context, const auto &server_location, auto &&make_params)
     {
-      auto params = make_params(info, context, server_location);
+      auto params = make_params(info, catalog, context, server_location);
       call_options.headers.emplace_back("airport-action-name", action_name);
       AIRPORT_MSGPACK_ACTION_SINGLE_PARAMETER(action, action_name, params);
       std::unique_ptr<arrow::flight::ResultStream> action_results;
@@ -106,56 +106,56 @@ namespace duckdb
     case AlterTableType::RENAME_COLUMN:
     {
       auto &rename_info = table_alter.Cast<RenameColumnInfo>();
-      return perform_simple_action("rename_column", rename_info, context, server_location, [](const auto &i, auto &context, const auto &server_location)
-                                   { return AirportAlterTableRenameColumnParameters(i); });
+      return perform_simple_action("rename_column", rename_info, airport_catalog, context, server_location, [](const auto &i, auto &catalog, auto &context, const auto &server_location)
+                                   { return AirportAlterTableRenameColumnParameters(i, catalog); });
     }
     case AlterTableType::REMOVE_COLUMN:
     {
       auto &remove_info = table_alter.Cast<RemoveColumnInfo>();
-      return perform_simple_action("remove_column", remove_info, context, server_location, [](const auto &i, auto &context, const auto &server_location)
-                                   { return AirportRemoveTableColumnParameters(i); });
+      return perform_simple_action("remove_column", remove_info, airport_catalog, context, server_location, [](const auto &i, auto &catalog, auto &context, const auto &server_location)
+                                   { return AirportRemoveTableColumnParameters(i, catalog); });
     }
     case AlterTableType::RENAME_FIELD:
     {
       auto &rename_info = table_alter.Cast<RenameFieldInfo>();
-      return perform_simple_action("rename_field", rename_info, context, server_location, [](const auto &i, auto &context, const auto &server_location)
-                                   { return AirportAlterTableRenameFieldParameters(i); });
+      return perform_simple_action("rename_field", rename_info, airport_catalog, context, server_location, [](const auto &i, auto &catalog, auto &context, const auto &server_location)
+                                   { return AirportAlterTableRenameFieldParameters(i, catalog); });
     }
     case AlterTableType::RENAME_TABLE:
     {
       auto &rename_info = table_alter.Cast<RenameTableInfo>();
-      return perform_simple_action("rename_table", rename_info, context, server_location, [](const auto &i, auto &context, const auto &server_location)
-                                   { return AirportAlterTableRenameTableParameters(i); });
+      return perform_simple_action("rename_table", rename_info, airport_catalog, context, server_location, [](const auto &i, auto &catalog, auto &context, const auto &server_location)
+                                   { return AirportAlterTableRenameTableParameters(i, catalog); });
     }
     case AlterTableType::ADD_COLUMN:
     {
       auto &add_info = table_alter.Cast<AddColumnInfo>();
-      return perform_simple_action("add_column", add_info, context, server_location, [](const auto &i, auto &context, const auto &server_location)
-                                   { return AirportAlterTableAddColumnParameters(i, context, server_location); });
+      return perform_simple_action("add_column", add_info, airport_catalog, context, server_location, [](const auto &i, auto &catalog, auto &context, const auto &server_location)
+                                   { return AirportAlterTableAddColumnParameters(i, catalog, context, server_location); });
     }
     case AlterTableType::ADD_FIELD:
     {
       auto &add_info = table_alter.Cast<AddFieldInfo>();
-      return perform_simple_action("add_field", add_info, context, server_location, [](const auto &i, auto &context, const auto &server_location)
-                                   { return AirportAlterTableAddFieldParameters(i, context, server_location); });
+      return perform_simple_action("add_field", add_info, airport_catalog, context, server_location, [](const auto &i, auto &catalog, auto &context, const auto &server_location)
+                                   { return AirportAlterTableAddFieldParameters(i, catalog, context, server_location); });
     }
     case AlterTableType::REMOVE_FIELD:
     {
       auto &remove_info = table_alter.Cast<RemoveFieldInfo>();
-      return perform_simple_action("remove_field", remove_info, context, server_location, [](const auto &i, auto &context, const auto &server_location)
-                                   { return AirportAlterTableRemoveFieldParameters(i); });
+      return perform_simple_action("remove_field", remove_info, airport_catalog, context, server_location, [](const auto &i, auto &catalog, auto &context, const auto &server_location)
+                                   { return AirportAlterTableRemoveFieldParameters(i, catalog); });
     }
     case AlterTableType::SET_DEFAULT:
     {
       auto &set_default_info = table_alter.Cast<SetDefaultInfo>();
-      return perform_simple_action("set_default", set_default_info, context, server_location, [](const auto &i, auto &context, const auto &server_location)
-                                   { return AirportAlterTableSetDefaultParameters(i); });
+      return perform_simple_action("set_default", set_default_info, airport_catalog, context, server_location, [](const auto &i, auto &catalog, auto &context, const auto &server_location)
+                                   { return AirportAlterTableSetDefaultParameters(i, catalog); });
     }
     case AlterTableType::ALTER_COLUMN_TYPE:
     {
       auto &change_type_info = table_alter.Cast<ChangeColumnTypeInfo>();
-      return perform_simple_action("change_column_type", change_type_info, context, server_location, [](const auto &i, auto &context, const auto &server_location)
-                                   { return AirportAlterTableChangeColumnTypeParameters(i, context, server_location); });
+      return perform_simple_action("change_column_type", change_type_info, airport_catalog, context, server_location, [](const auto &i, auto &catalog, auto &context, const auto &server_location)
+                                   { return AirportAlterTableChangeColumnTypeParameters(i, catalog, context, server_location); });
     }
     case AlterTableType::FOREIGN_KEY_CONSTRAINT:
     {
@@ -174,21 +174,21 @@ namespace duckdb
     {
       auto &set_not_null_info = table_alter.Cast<SetNotNullInfo>();
 
-      return perform_simple_action("set_not_null", set_not_null_info, context, server_location, [](const auto &i, auto &context, const auto &server_location)
-                                   { return AirportAlterTableSetNotNullParameters(i); });
+      return perform_simple_action("set_not_null", set_not_null_info, airport_catalog, context, server_location, [](const auto &i, auto &catalog, auto &context, const auto &server_location)
+                                   { return AirportAlterTableSetNotNullParameters(i, catalog); });
     }
     case AlterTableType::DROP_NOT_NULL:
     {
       auto &drop_not_null_info = table_alter.Cast<DropNotNullInfo>();
-      return perform_simple_action("drop_not_null", drop_not_null_info, context, server_location, [](const auto &i, auto &context, const auto &server_location)
-                                   { return AirportAlterTableDropNotNullParameters(i); });
+      return perform_simple_action("drop_not_null", drop_not_null_info, airport_catalog, context, server_location, [](const auto &i, auto &catalog, auto &context, const auto &server_location)
+                                   { return AirportAlterTableDropNotNullParameters(i, catalog); });
     }
     case AlterTableType::ADD_CONSTRAINT:
     {
       auto &add_constraint_info = table_alter.Cast<AddConstraintInfo>();
 
-      return perform_simple_action("add_constraint", add_constraint_info, context, server_location, [](const auto &i, auto &context, const auto &server_location)
-                                   { return AirportAlterTableAddConstraintParameters(i); });
+      return perform_simple_action("add_constraint", add_constraint_info, airport_catalog, context, server_location, [](const auto &i, auto &catalog, auto &context, const auto &server_location)
+                                   { return AirportAlterTableAddConstraintParameters(i, catalog); });
     }
     case AlterTableType::SET_PARTITIONED_BY:
       throw NotImplementedException("SET PARTITIONED BY is not supported for Airport tables");

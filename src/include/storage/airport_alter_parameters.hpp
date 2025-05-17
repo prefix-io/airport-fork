@@ -19,10 +19,10 @@ namespace duckdb
     std::string name;
     bool ignore_not_found;
 
-    explicit AirportAlterBase(const AlterInfo &info) : catalog(info.catalog),
-                                                       schema(info.schema),
-                                                       name(info.name),
-                                                       ignore_not_found(info.if_not_found == OnEntryNotFound::RETURN_NULL)
+    explicit AirportAlterBase(const AlterInfo &info, const AirportCatalog &catalog) : catalog(catalog.internal_name()),
+                                                                                      schema(info.schema),
+                                                                                      name(info.name),
+                                                                                      ignore_not_found(info.if_not_found == OnEntryNotFound::RETURN_NULL)
     {
     }
   };
@@ -31,8 +31,8 @@ namespace duckdb
   {
     std::string new_table_name;
 
-    explicit AirportAlterTableRenameParameters(const RenameTableInfo &info) : AirportAlterBase(info),
-                                                                              new_table_name(info.new_table_name)
+    explicit AirportAlterTableRenameParameters(const RenameTableInfo &info, const AirportCatalog &catalog) : AirportAlterBase(info, catalog),
+                                                                                                             new_table_name(info.new_table_name)
     {
     }
 
@@ -44,9 +44,9 @@ namespace duckdb
     std::string old_name;
     std::string new_name;
 
-    explicit AirportAlterTableRenameColumnParameters(const RenameColumnInfo &info) : AirportAlterBase(info),
-                                                                                     old_name(info.old_name),
-                                                                                     new_name(info.new_name)
+    explicit AirportAlterTableRenameColumnParameters(const RenameColumnInfo &info, const AirportCatalog &catalog) : AirportAlterBase(info, catalog),
+                                                                                                                    old_name(info.old_name),
+                                                                                                                    new_name(info.new_name)
     {
     }
 
@@ -62,9 +62,9 @@ namespace duckdb
     //    unordered_map<std::string, std::string> tags;
     bool if_column_not_exists;
 
-    explicit AirportAlterTableAddColumnParameters(const AddColumnInfo &info, ClientContext &context,
+    explicit AirportAlterTableAddColumnParameters(const AddColumnInfo &info, const AirportCatalog &catalog, ClientContext &context,
                                                   const std::string &server_location)
-        : AirportAlterBase(info),
+        : AirportAlterBase(info, catalog),
           if_column_not_exists(info.if_column_not_exists)
     {
       ArrowSchema send_schema;
@@ -105,9 +105,9 @@ namespace duckdb
     std::vector<std::string> column_path;
     bool if_field_not_exists;
 
-    explicit AirportAlterTableAddFieldParameters(const AddFieldInfo &info, ClientContext &context,
+    explicit AirportAlterTableAddFieldParameters(const AddFieldInfo &info, const AirportCatalog &catalog, ClientContext &context,
                                                  const std::string &server_location)
-        : AirportAlterBase(info),
+        : AirportAlterBase(info, catalog),
           column_path(info.column_path),
           if_field_not_exists(info.if_field_not_exists)
 
@@ -146,7 +146,7 @@ namespace duckdb
     bool if_column_exists;
     bool cascade;
 
-    explicit AirportRemoveTableColumnParameters(const RemoveColumnInfo &info) : AirportAlterBase(info)
+    explicit AirportRemoveTableColumnParameters(const RemoveColumnInfo &info, const AirportCatalog &catalog) : AirportAlterBase(info, catalog)
     {
       removed_column = info.removed_column;
       if_column_exists = info.if_column_exists;
@@ -162,8 +162,8 @@ namespace duckdb
     bool if_column_exists;
     bool cascade;
 
-    explicit AirportAlterTableRemoveFieldParameters(const RemoveFieldInfo &info)
-        : AirportAlterBase(info),
+    explicit AirportAlterTableRemoveFieldParameters(const RemoveFieldInfo &info, const AirportCatalog &catalog)
+        : AirportAlterBase(info, catalog),
           column_path(info.column_path),
           if_column_exists(info.if_column_exists),
           cascade(info.cascade)
@@ -179,9 +179,9 @@ namespace duckdb
     //! Column new name
     std::string new_name;
 
-    explicit AirportAlterTableRenameFieldParameters(const RenameFieldInfo &info) : AirportAlterBase(info),
-                                                                                   column_path(info.column_path),
-                                                                                   new_name(info.new_name)
+    explicit AirportAlterTableRenameFieldParameters(const RenameFieldInfo &info, const AirportCatalog &catalog) : AirportAlterBase(info, catalog),
+                                                                                                                  column_path(info.column_path),
+                                                                                                                  new_name(info.new_name)
     {
     }
 
@@ -192,8 +192,8 @@ namespace duckdb
   {
     std::string new_table_name;
 
-    explicit AirportAlterTableRenameTableParameters(const RenameTableInfo &info)
-        : AirportAlterBase(info),
+    explicit AirportAlterTableRenameTableParameters(const RenameTableInfo &info, const AirportCatalog &catalog)
+        : AirportAlterBase(info, catalog),
           new_table_name(info.new_table_name)
     {
     }
@@ -206,8 +206,8 @@ namespace duckdb
     std::string column_name;
     std::string expression;
 
-    explicit AirportAlterTableSetDefaultParameters(const SetDefaultInfo &info)
-        : AirportAlterBase(info),
+    explicit AirportAlterTableSetDefaultParameters(const SetDefaultInfo &info, const AirportCatalog &catalog)
+        : AirportAlterBase(info, catalog),
           column_name(info.column_name),
           expression(info.expression->ToString())
     {
@@ -221,9 +221,9 @@ namespace duckdb
     std::string column_schema;
     std::string expression;
 
-    explicit AirportAlterTableChangeColumnTypeParameters(const ChangeColumnTypeInfo &info, ClientContext &context,
+    explicit AirportAlterTableChangeColumnTypeParameters(const ChangeColumnTypeInfo &info, const AirportCatalog &catalog, ClientContext &context,
                                                          const std::string &server_location)
-        : AirportAlterBase(info),
+        : AirportAlterBase(info, catalog),
           expression(info.expression->ToString())
     {
 
@@ -259,8 +259,8 @@ namespace duckdb
   {
     std::string column_name;
 
-    explicit AirportAlterTableSetNotNullParameters(const SetNotNullInfo &info)
-        : AirportAlterBase(info),
+    explicit AirportAlterTableSetNotNullParameters(const SetNotNullInfo &info, const AirportCatalog &catalog)
+        : AirportAlterBase(info, catalog),
           column_name(info.column_name)
     {
     }
@@ -272,8 +272,8 @@ namespace duckdb
   {
     std::string column_name;
 
-    explicit AirportAlterTableDropNotNullParameters(const DropNotNullInfo &info)
-        : AirportAlterBase(info),
+    explicit AirportAlterTableDropNotNullParameters(const DropNotNullInfo &info, const AirportCatalog &catalog)
+        : AirportAlterBase(info, catalog),
           column_name(info.column_name)
     {
     }
@@ -285,8 +285,8 @@ namespace duckdb
   {
     std::string constraint;
 
-    explicit AirportAlterTableAddConstraintParameters(const AddConstraintInfo &info)
-        : AirportAlterBase(info),
+    explicit AirportAlterTableAddConstraintParameters(const AddConstraintInfo &info, const AirportCatalog &catalog)
+        : AirportAlterBase(info, catalog),
           constraint(info.constraint->ToString())
     {
     }

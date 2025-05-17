@@ -158,7 +158,7 @@ namespace duckdb
     auto flight_client = AirportAPI::FlightClientForLocation(airport_catalog.attach_parameters()->location());
 
     AirportCreateSchemaParameters params;
-    params.catalog_name = info.catalog;
+    params.catalog_name = airport_catalog.internal_name();
     params.schema = info.schema;
     if (!info.comment.IsNull())
     {

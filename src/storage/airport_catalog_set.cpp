@@ -63,7 +63,7 @@ namespace duckdb
 
     // Common parameters
     DropItemActionParameters params;
-    params.catalog_name = info.catalog;
+    params.catalog_name = airport_catalog.internal_name();
     params.schema_name = info.schema;
     params.name = info.name;
     params.ignore_not_found = (info.if_not_found == OnEntryNotFound::RETURN_NULL) ? true : false;
