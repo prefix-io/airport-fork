@@ -414,10 +414,9 @@ namespace duckdb
                                             flight_delegate->Next(),
                                             this,
                                             "");
-          if (chunk.app_metadata)
+          if (chunk.app_metadata != nullptr)
           {
             // Handle app metadata if needed
-
             if (last_app_metadata_)
             {
               *last_app_metadata_ = chunk.app_metadata;
@@ -431,13 +430,15 @@ namespace duckdb
               progress_->store(progress_report.progress, std::memory_order_relaxed);
             }
           }
-          if (!chunk.data && !chunk.app_metadata)
+          else
           {
-            // EOS
-            *batch = nullptr;
-            return arrow::Status::OK();
+            if (last_app_metadata_)
+            {
+              *last_app_metadata_ = nullptr;
+            }
           }
-          else if (chunk.data)
+
+          if (chunk.data)
           {
             AIRPORT_ASSIGN_OR_RAISE_CONTAINER(
                 auto aligned_chunk,
@@ -446,9 +447,13 @@ namespace duckdb
                 "EnsureRecordBatchAlignment");
 
             *batch = aligned_chunk;
-
-            return arrow::Status::OK();
           }
+          else
+          {
+            *batch = nullptr;
+          }
+
+          return arrow::Status::OK();
         }
       }
     }

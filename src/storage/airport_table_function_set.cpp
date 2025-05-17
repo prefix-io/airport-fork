@@ -102,8 +102,8 @@ namespace duckdb
       {
         auto column_metadata = ArrowSchemaMetadata(schema_field.metadata);
 
-        auto is_table_input = column_metadata.GetOption("is_table_input");
-        if (!is_table_input.empty())
+        auto is_table_type = column_metadata.GetOption("is_table_type");
+        if (!is_table_type.empty())
         {
           source_indexes.push_back(-1);
           continue;
@@ -135,7 +135,7 @@ namespace duckdb
       source_indexes.push_back(col_idx);
     }
 
-    // We need to produce a schema that doesn't contain the is_table_input fields.
+    // We need to produce a schema that doesn't contain the is_table_type fields.
 
     auto appender = make_uniq<ArrowAppender>(input_schema_types,
                                              input_schema_types.size(),
@@ -164,7 +164,7 @@ namespace duckdb
       // otherwise its positional.
       auto metadata = ArrowSchemaMetadata(schema_child.metadata);
 
-      if (!metadata.GetOption("is_table_input").empty())
+      if (!metadata.GetOption("is_table_type").empty())
       {
         continue;
       }
@@ -361,7 +361,7 @@ namespace duckdb
       }
       auto actual_type = is_any_type ? LogicalType(LogicalTypeId::ANY) : arrow_type->GetDuckType();
 
-      if (!metadata.GetOption("is_table_input").empty())
+      if (!metadata.GetOption("is_table_type").empty())
       {
         result.all.emplace_back(LogicalType(LogicalTypeId::TABLE));
       }
@@ -378,7 +378,7 @@ namespace duckdb
       }
       else
       {
-        if (!metadata.GetOption("is_table_input").empty())
+        if (!metadata.GetOption("is_table_type").empty())
         {
           result.positional.emplace_back(LogicalType(LogicalTypeId::TABLE));
         }
@@ -411,7 +411,7 @@ namespace duckdb
 
     auto auth_token = AirportAuthTokenForLocation(context, bind_data.server_location(), "", "");
 
-    call_options.headers.emplace_back("airport-operation", "table_in_out_function");
+    call_options.headers.emplace_back("airport-operation", "table_function_in_out");
 
     D_ASSERT(bind_data.table_function_parameters() != std::nullopt);
     auto &table_function_parameters = *bind_data.table_function_parameters();
@@ -600,6 +600,7 @@ namespace duckdb
     auto &global_state = data_p.global_state->Cast<AirportDynamicTableInOutGlobalState>();
     const arrow::Buffer finished_buffer("finished");
 
+    // So we need to send data to the server.
     AIRPORT_ARROW_ASSERT_OK_CONTAINER(
         global_state.writer->DoneWriting(),
         global_state.scan_bind_data,
