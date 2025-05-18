@@ -15,7 +15,7 @@ namespace duckdb
   public:
     AirportCatalogSet(Catalog &catalog);
 
-    optional_ptr<CatalogEntry> GetEntry(ClientContext &context, const string &name);
+    virtual optional_ptr<CatalogEntry> GetEntry(ClientContext &context, const EntryLookupInfo &lookup_info);
     virtual void DropEntry(ClientContext &context, DropInfo &info);
     void Scan(ClientContext &context, const std::function<void(CatalogEntry &)> &callback);
     virtual optional_ptr<CatalogEntry> CreateEntry(unique_ptr<CatalogEntry> entry);
@@ -32,8 +32,6 @@ namespace duckdb
 
   protected:
     Catalog &catalog;
-
-  private:
     mutex entry_lock;
     case_insensitive_map_t<unique_ptr<CatalogEntry>> entries;
     bool is_loaded;

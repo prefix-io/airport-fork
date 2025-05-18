@@ -41,6 +41,7 @@
 #include "storage/airport_transaction.hpp"
 #include "airport_schema_utils.hpp"
 #include "storage/airport_alter_parameters.hpp"
+#include "duckdb/planner/tableref/bound_at_clause.hpp"
 
 namespace duckdb
 {
@@ -442,8 +443,8 @@ namespace duckdb
   {
     //    auto &transaction = AirportTransaction::Get(context, catalog);
     //  auto &airport_catalog = catalog.Cast<AirportCatalog>();
-
-    auto entry = GetEntry(context, alter.name);
+    EntryLookupInfo lookup_info(CatalogType::TABLE_ENTRY, alter.name);
+    auto entry = GetEntry(context, lookup_info);
     if (!entry)
     {
       return;
@@ -451,6 +452,89 @@ namespace duckdb
 
     auto &airport_entry = entry.get()->Cast<AirportTableEntry>();
     ReplaceEntry(alter.name, airport_entry.AlterEntryDirect(context, alter));
+  }
+
+  optional_ptr<CatalogEntry> AirportTableSet::GetEntry(ClientContext &context, const EntryLookupInfo &lookup_info)
+  {
+    auto existing_entry = AirportCatalogSet::GetEntry(context, lookup_info);
+
+    auto at = lookup_info.GetAtClause();
+    // If we aren't doing anything special with point-in-time queries,
+    // just return the base class entry.
+    if (!at)
+    {
+      return existing_entry;
+    }
+
+    // Otherwise ask the server for the flight info at the point in
+    // time of interest.
+
+    if (!existing_entry)
+    {
+      return nullptr;
+    }
+    auto &airport_entry = existing_entry->Cast<AirportTableEntry>();
+
+    auto &airport_catalog = airport_entry.catalog.Cast<AirportCatalog>();
+
+    auto client_properties = context.GetClientProperties();
+    auto &server_location = airport_catalog.attach_parameters()->location();
+
+    AirportFlightInfoParameters params;
+
+    AIRPORT_ASSIGN_OR_RAISE_LOCATION(
+        params.descriptor,
+        airport_entry.table_data->descriptor().SerializeToString(),
+        server_location,
+        "serialize flight descriptor");
+
+    params.at_unit = at->Unit();
+    params.at_value = at->GetValue().ToString();
+
+    arrow::flight::FlightCallOptions call_options;
+
+    airport_add_standard_headers(call_options, airport_catalog.attach_parameters()->location());
+    airport_add_authorization_header(call_options, airport_catalog.attach_parameters()->auth_token());
+
+    call_options.headers.emplace_back("airport-action-name", "flight_info");
+
+    auto flight_client = AirportAPI::FlightClientForLocation(airport_catalog.attach_parameters()->location());
+
+    AIRPORT_MSGPACK_ACTION_SINGLE_PARAMETER(action, "flight_info", params);
+
+    std::unique_ptr<arrow::flight::ResultStream> action_results;
+    AIRPORT_ASSIGN_OR_RAISE_LOCATION(action_results, flight_client->DoAction(call_options, action), server_location, "airport_create_table");
+
+    AIRPORT_ASSIGN_OR_RAISE_LOCATION(auto result_buffer, action_results->Next(), server_location, "");
+    AIRPORT_ARROW_ASSERT_OK_LOCATION(action_results->Drain(), server_location, "");
+
+    if (result_buffer == nullptr)
+    {
+      throw AirportFlightException(server_location, "No flight info returned from flight_info action");
+    }
+
+    std::string_view serialized_flight_info(reinterpret_cast<const char *>(result_buffer->body->data()), result_buffer->body->size());
+
+    // Now how to we deserialize the flight info from that buffer...
+    AIRPORT_ASSIGN_OR_RAISE_LOCATION(
+        auto flight_info,
+        arrow::flight::FlightInfo::Deserialize(serialized_flight_info),
+        server_location,
+        "Error deserializing flight info from create_table RPC");
+
+    auto table_entry = AirportCatalogEntryFromFlightInfo(
+        std::move(flight_info),
+        server_location,
+        this->schema,
+        catalog,
+        context);
+
+    // This is really just a temporary catalog entry since its a point
+    // in time, it shoudln't be added to the main catalog, but for now
+    // just accumulate these entries in the table set.
+    point_in_time_entries_.emplace_back(std::move(table_entry));
+
+    return point_in_time_entries_.back().get();
   }
 
 } // namespace duckdb

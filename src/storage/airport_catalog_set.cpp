@@ -15,7 +15,7 @@ namespace duckdb
   {
   }
 
-  optional_ptr<CatalogEntry> AirportCatalogSet::GetEntry(ClientContext &context, const string &name)
+  optional_ptr<CatalogEntry> AirportCatalogSet::GetEntry(ClientContext &context, const EntryLookupInfo &lookup_info)
   {
     lock_guard<mutex> l(entry_lock);
     if (!is_loaded)
@@ -23,7 +23,7 @@ namespace duckdb
       is_loaded = true;
       LoadEntries(context);
     }
-    auto entry = entries.find(name);
+    auto entry = entries.find(lookup_info.GetEntryName());
     if (entry == entries.end())
     {
       return nullptr;

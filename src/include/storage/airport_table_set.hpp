@@ -22,6 +22,8 @@ namespace duckdb
     ~AirportTableSet() {}
 
   public:
+    optional_ptr<CatalogEntry> GetEntry(ClientContext &context, const EntryLookupInfo &lookup_info) override;
+
     optional_ptr<CatalogEntry> CreateTable(ClientContext &context, BoundCreateTableInfo &info);
 
     static unique_ptr<AirportTableInfo> GetTableInfo(ClientContext &context, AirportSchemaEntry &schema,
@@ -32,6 +34,9 @@ namespace duckdb
 
   protected:
     void LoadEntries(ClientContext &context) override;
+
+  private:
+    vector<unique_ptr<CatalogEntry>> point_in_time_entries_;
   };
 
   class AirportTableEntry;

@@ -125,7 +125,7 @@ namespace duckdb
       }
       throw CatalogException(schema_lookup.GetErrorContext(), "Schema with name \"%s\" not found", schema_name);
     }
-    auto entry = schemas.GetEntry(transaction.GetContext(), schema_name);
+    auto entry = schemas.GetEntry(transaction.GetContext(), schema_lookup);
     if (!entry && if_not_found != OnEntryNotFound::RETURN_NULL)
     {
       throw CatalogException(schema_lookup.GetErrorContext(), "Schema with name \"%s\" not found", schema_name);

@@ -196,7 +196,7 @@ namespace duckdb
     {
       return nullptr;
     }
-    return GetCatalogSet(lookup_info.GetCatalogType()).GetEntry(transaction.GetContext(), lookup_info.GetEntryName());
+    return GetCatalogSet(lookup_info.GetCatalogType()).GetEntry(transaction.GetContext(), lookup_info);
   }
 
   AirportCatalogSet &AirportSchemaEntry::GetCatalogSet(CatalogType type)
