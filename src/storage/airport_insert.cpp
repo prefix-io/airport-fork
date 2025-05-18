@@ -85,8 +85,13 @@ namespace duckdb
                             const vector<LogicalType> &types,
                             const vector<unique_ptr<Expression>> &bound_defaults,
                             const vector<unique_ptr<BoundConstraint>> &bound_constraints)
-        : default_executor(context, bound_defaults), bound_constraints_(bound_constraints)
+        : default_executor(context), bound_constraints_(bound_constraints)
     {
+      for (auto &bound_default : bound_defaults)
+      {
+        default_executor.AddExpression(*bound_default);
+      }
+
       returning_data_chunk.Initialize(Allocator::Get(context), types);
     }
 
