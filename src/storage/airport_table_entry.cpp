@@ -226,7 +226,6 @@ namespace duckdb
 
     // Rusty: this is the place where the transformation happens between table functions and tables.
     vector<Value> inputs = {
-        //        table_data->server_location(),
         Value::POINTER((uintptr_t)table_data.get()),
         Value::POINTER((uintptr_t)this),
         transaction.identifier().has_value() ? transaction.identifier().value() : ""};

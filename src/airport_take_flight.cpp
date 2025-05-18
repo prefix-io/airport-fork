@@ -112,6 +112,17 @@ namespace duckdb
 
     int64_t estimated_records = -1;
 
+    // If we are applying time travel, the schema that we have is the latest schema
+    // but back in time the schema may have been different.
+    //
+    // We should just request the schema from the server if we are using time travel.
+    // Additionally the number of estimated records may also be different.
+
+    if (!take_flight_params.at_unit().empty() && !take_flight_params.at_value().empty())
+    {
+      schema = nullptr;
+    }
+
     // Get the information about the flight, this will allow the
     // endpoint information to be returned.
 
@@ -136,6 +147,35 @@ namespace duckdb
 
         // The only item returned is a serialized flight info.
         AIRPORT_ASSIGN_OR_RAISE_LOCATION(auto serialized_flight_info_buffer, action_results->Next(), server_location, "reading get_flight_info for table function");
+
+        std::string_view serialized_flight_info(reinterpret_cast<const char *>(serialized_flight_info_buffer->body->data()), serialized_flight_info_buffer->body->size());
+
+        // Now deserialize that flight info so we can use it.
+        AIRPORT_ASSIGN_OR_RAISE_LOCATION(retrieved_flight_info, arrow::flight::FlightInfo::Deserialize(serialized_flight_info), server_location, "deserialize flight info");
+
+        AIRPORT_ARROW_ASSERT_OK_LOCATION(action_results->Drain(), server_location, "");
+      }
+      else if (table_entry != nullptr)
+      {
+        // We have a table entry, which means this isn't an adhoc call to airport_take_flight, so we can call
+        // the flight_info action rather than GetFlightInfo which allows additional parameters to be passed.
+        AirportFlightInfoParameters get_flight_info_params;
+
+        AIRPORT_ASSIGN_OR_RAISE_LOCATION(
+            get_flight_info_params.descriptor,
+            descriptor.SerializeToString(),
+            server_location,
+            "airport_take_flight: serialize flight descriptor");
+
+        get_flight_info_params.at_unit = take_flight_params.at_unit();
+        get_flight_info_params.at_value = take_flight_params.at_value();
+
+        AIRPORT_MSGPACK_ACTION_SINGLE_PARAMETER(action, "flight_info", get_flight_info_params);
+
+        AIRPORT_ASSIGN_OR_RAISE_LOCATION(auto action_results, flight_client->DoAction(call_options, action), server_location, "airport_table_function_flight_info");
+
+        // The only item returned is a serialized flight info.
+        AIRPORT_ASSIGN_OR_RAISE_LOCATION(auto serialized_flight_info_buffer, action_results->Next(), server_location, "reading flight_info for flight");
 
         std::string_view serialized_flight_info(reinterpret_cast<const char *>(serialized_flight_info_buffer->body->data()), serialized_flight_info_buffer->body->size());
 

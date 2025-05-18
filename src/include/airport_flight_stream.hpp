@@ -71,6 +71,16 @@ namespace duckdb
     MSGPACK_DEFINE_MAP(descriptor, parameters, table_input_schema, at_unit, at_value)
   };
 
+  struct AirportFlightInfoParameters
+  {
+    std::string descriptor;
+
+    std::string at_unit;
+    std::string at_value;
+
+    MSGPACK_DEFINE_MAP(descriptor, at_unit, at_value)
+  };
+
   class AirportTakeFlightParameters
   {
   public:
