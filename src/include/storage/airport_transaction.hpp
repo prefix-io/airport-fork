@@ -41,6 +41,8 @@ namespace duckdb
       return identifier_;
     }
 
+    vector<unique_ptr<CatalogEntry>> point_in_time_entries_;
+
   private:
     // The identifier returned from the Arrow flight server.
     std::optional<std::string> identifier_;

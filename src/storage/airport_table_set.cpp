@@ -532,9 +532,11 @@ namespace duckdb
     // This is really just a temporary catalog entry since its a point
     // in time, it shoudln't be added to the main catalog, but for now
     // just accumulate these entries in the table set.
-    point_in_time_entries_.emplace_back(std::move(table_entry));
+    auto &transaction = AirportTransaction::Get(context, catalog);
 
-    return point_in_time_entries_.back().get();
+    auto &result = transaction.point_in_time_entries_.emplace_back(std::move(table_entry));
+
+    return result;
   }
 
 } // namespace duckdb

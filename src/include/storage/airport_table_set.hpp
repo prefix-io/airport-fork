@@ -34,9 +34,6 @@ namespace duckdb
 
   protected:
     void LoadEntries(ClientContext &context) override;
-
-  private:
-    vector<unique_ptr<CatalogEntry>> point_in_time_entries_;
   };
 
   class AirportTableEntry;
