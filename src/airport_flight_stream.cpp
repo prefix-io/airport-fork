@@ -229,10 +229,11 @@ namespace duckdb
         dummy_table_function,
         empty);
 
-    bind_data = func.bind(context,
-                          bind_input,
-                          return_types,
-                          return_names);
+    bind_data = func.bind(
+        context,
+        bind_input,
+        return_types,
+        return_names);
 
     // printf("Parquet names: %s\n", StringUtil::Join(return_names, ", ").c_str());
     // printf("Parquet types: %s\n", StringUtil::Join(return_types, return_types.size(), ", ", [](const LogicalType &type)
@@ -274,7 +275,7 @@ namespace duckdb
 
       if (it == scan_index_map.end())
       {
-        throw BinderException("Airport : The column name " + referenced_column_name + " does not exist in the Arrow Flight schema.  Found column names: " +
+        throw BinderException("Airport : The column name '" + referenced_column_name + "' does not exist in the columns produced by '" + func.name + "'.  Found column names: " +
                               StringUtil::Join(return_names, ", ") + " expected column names: " +
                               StringUtil::Join(expected_return_names, ", "));
       }
