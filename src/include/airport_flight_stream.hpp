@@ -187,8 +187,11 @@ namespace duckdb
   {
     TableFunction table_function;
     unique_ptr<FunctionData> bind_data;
+
     unique_ptr<GlobalTableFunctionState> global_state;
     unique_ptr<LocalTableFunctionState> local_state;
+
+    vector<column_t> not_mapped_column_indexes;
 
     vector<LogicalType> return_types;
     vector<string> return_names;

@@ -275,9 +275,11 @@ namespace duckdb
 
       if (it == scan_index_map.end())
       {
-        throw BinderException("Airport : The column name '" + referenced_column_name + "' does not exist in the columns produced by '" + func.name + "'.  Found column names: " +
-                              StringUtil::Join(return_names, ", ") + " expected column names: " +
-                              StringUtil::Join(expected_return_names, ", "));
+        not_mapped_column_indexes.emplace_back(column_id);
+        continue;
+        // throw BinderException("Airport : The column name '" + referenced_column_name + "' does not exist in the columns produced by '" + func.name + "'.  Found column names: " +
+        //                       StringUtil::Join(return_names, ", ") + " expected column names: " +
+        //                       StringUtil::Join(expected_return_names, ", "));
       }
 
       auto &found_column_index = it->second.first;

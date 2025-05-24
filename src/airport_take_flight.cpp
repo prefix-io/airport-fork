@@ -375,6 +375,13 @@ namespace duckdb
                                       scan_data->global_state.get());
     scan_data->table_function.function(context, function_input, output);
 
+    for (auto &idx : scan_data->not_mapped_column_indexes)
+    {
+      auto &vec = output.data[idx];
+      vec.SetVectorType(VectorType::FLAT_VECTOR);
+      FlatVector::Validity(vec).SetAllInvalid(output.size());
+    }
+
     auto count = output.size();
     scan_data->finished_chunk = count == 0;
     output.Verify();
