@@ -17,17 +17,16 @@ jobs:
   duckdb-stable-build:
     name: Build extension binaries
 #    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main#    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
-    uses: rustyconover/extension-ci-tools/.github/workflows/_extension_distribution.yml@21ba7a53896c8bb79c0262099a50f5a678acf70c
+    uses: rustyconover/extension-ci-tools/.github/workflows/_extension_distribution.yml@a197b831cefb6c8ab93def2b8dacab42502c65af
     with:
       duckdb_version: main
       extension_name: airport
-      ci_tools_version: 21ba7a53896c8bb79c0262099a50f5a678acf70c
+      ci_tools_version: a197b831cefb6c8ab93def2b8dacab42502c65af
       extra_toolchains: parser_tools
       exclude_archs: "wasm_mvp;wasm_eh;wasm_threads;"
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
 
   # duckdb-stable-deploy:
   #   name: Deploy extension binaries
