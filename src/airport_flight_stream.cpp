@@ -55,11 +55,9 @@ namespace duckdb
     // in IPC format and convert it to a DuckDB DataChunk so we can
     // get the values to pass to the function as arguments and named parameters.
 
-    auto buffer_reader = std::make_shared<arrow::io::BufferReader>(function_call_data.data);
-
     AIRPORT_ASSIGN_OR_RAISE_CONTAINER(
         auto arg_reader,
-        arrow::ipc::RecordBatchStreamReader::Open(buffer_reader),
+        arrow::ipc::RecordBatchStreamReader::Open(arrow::io::BufferReader::FromString(function_call_data.data)),
         (&bind_data),
         "airport_take_flight: failed to read DuckDB function call arguments arrow table");
 
