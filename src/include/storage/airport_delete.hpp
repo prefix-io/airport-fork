@@ -7,7 +7,7 @@ namespace duckdb
   class AirportDelete : public PhysicalOperator
   {
   public:
-    AirportDelete(LogicalOperator &op, TableCatalogEntry &table, idx_t rowid_index, bool return_chunk);
+    AirportDelete(PhysicalPlan &physical_plan, LogicalOperator &op, TableCatalogEntry &table, idx_t rowid_index, bool return_chunk);
 
     //! The table to delete from
     TableCatalogEntry &table;

@@ -30,12 +30,12 @@
 namespace duckdb
 {
 
-  AirportInsert::AirportInsert(LogicalOperator &op, TableCatalogEntry &table,
+  AirportInsert::AirportInsert(PhysicalPlan &physical_plan, LogicalOperator &op, TableCatalogEntry &table,
                                physical_index_vector_t<idx_t> column_index_map_p,
                                bool return_chunk,
                                vector<unique_ptr<Expression>> bound_defaults,
                                vector<unique_ptr<BoundConstraint>> bound_constraints_p)
-      : PhysicalOperator(PhysicalOperatorType::EXTENSION, op.types, 1), insert_table(&table),
+      : PhysicalOperator(physical_plan, PhysicalOperatorType::EXTENSION, op.types, 1), insert_table(&table),
         insert_types(table.GetTypes()),
         schema(nullptr),
         column_index_map(std::move(column_index_map_p)),
@@ -45,9 +45,9 @@ namespace duckdb
   {
   }
 
-  AirportInsert::AirportInsert(LogicalOperator &op, SchemaCatalogEntry &schema, unique_ptr<BoundCreateTableInfo> info_p,
+  AirportInsert::AirportInsert(PhysicalPlan &physical_plan, LogicalOperator &op, SchemaCatalogEntry &schema, unique_ptr<BoundCreateTableInfo> info_p,
                                idx_t estimated_cardinality)
-      : PhysicalOperator(PhysicalOperatorType::CREATE_TABLE_AS, op.types, estimated_cardinality), insert_table(nullptr), schema(&schema),
+      : PhysicalOperator(physical_plan, PhysicalOperatorType::CREATE_TABLE_AS, op.types, estimated_cardinality), insert_table(nullptr), schema(&schema),
         info(std::move(info_p)), return_chunk(false)
   {
     PhysicalInsert::GetInsertInfo(*info, insert_types);

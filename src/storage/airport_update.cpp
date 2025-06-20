@@ -26,13 +26,14 @@ namespace duckdb
 {
 
   AirportUpdate::AirportUpdate(
+      PhysicalPlan &physical_plan,
       LogicalOperator &op,
       vector<LogicalType> types,
       TableCatalogEntry &table,
       vector<PhysicalIndex> columns, vector<unique_ptr<Expression>> expressions,
       vector<unique_ptr<Expression>> bound_defaults, vector<unique_ptr<BoundConstraint>> bound_constraints,
       idx_t estimated_cardinality, bool return_chunk, bool update_is_del_and_insert)
-      : PhysicalOperator(PhysicalOperatorType::EXTENSION, op.types, estimated_cardinality),
+      : PhysicalOperator(physical_plan, PhysicalOperatorType::EXTENSION, op.types, estimated_cardinality),
         table(table),
         columns(std::move(columns)), expressions(std::move(expressions)),
         bound_defaults(std::move(bound_defaults)), bound_constraints(std::move(bound_constraints)),

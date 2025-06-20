@@ -65,8 +65,8 @@ namespace duckdb
     }
   }
 
-  AirportDeleteParameterized::AirportDeleteParameterized(LogicalOperator &op, TableCatalogEntry &table, PhysicalOperator &plan)
-      : PhysicalOperator(PhysicalOperatorType::EXTENSION, op.types, 1), table(table),
+  AirportDeleteParameterized::AirportDeleteParameterized(PhysicalPlan &physical_plan, LogicalOperator &op, TableCatalogEntry &table, PhysicalOperator &plan)
+      : PhysicalOperator(physical_plan, PhysicalOperatorType::EXTENSION, op.types, 1), table(table),
         sql_filters(ExtractFilters(plan, "DELETE"))
   {
     printf("Got SQL filters: %s\n", sql_filters.c_str());

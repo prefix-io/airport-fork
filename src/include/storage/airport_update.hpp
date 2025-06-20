@@ -10,6 +10,7 @@ namespace duckdb
   {
   public:
     AirportUpdate(
+        PhysicalPlan &physical_plan,
         LogicalOperator &op,
         vector<LogicalType> types,
         TableCatalogEntry &table,

@@ -103,8 +103,8 @@ namespace duckdb
     return {expressions, filters};
   }
 
-  AirportUpdateParameterized::AirportUpdateParameterized(LogicalOperator &op, TableCatalogEntry &table, PhysicalOperator &plan)
-      : PhysicalOperator(PhysicalOperatorType::EXTENSION, op.types, 1), table(table)
+  AirportUpdateParameterized::AirportUpdateParameterized(PhysicalPlan &physical_plan, LogicalOperator &op, TableCatalogEntry &table, PhysicalOperator &plan)
+      : PhysicalOperator(physical_plan, PhysicalOperatorType::EXTENSION, op.types, 1), table(table)
   {
     auto result = ConstructUpdateStatement(op.Cast<LogicalUpdate>(), plan);
     printf("Got expressions: %s\n", result.first.c_str());

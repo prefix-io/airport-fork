@@ -13,7 +13,8 @@ namespace duckdb
   {
   public:
     //! INSERT INTO
-    AirportInsert(LogicalOperator &op,
+    AirportInsert(PhysicalPlan &physical_plan,
+                  LogicalOperator &op,
                   TableCatalogEntry &table,
                   physical_index_vector_t<idx_t> column_index_map,
                   bool return_chunk,
@@ -21,7 +22,8 @@ namespace duckdb
                   vector<unique_ptr<BoundConstraint>> bound_constraints);
 
     //! CREATE TABLE AS
-    AirportInsert(LogicalOperator &op, SchemaCatalogEntry &schema, unique_ptr<BoundCreateTableInfo> info, idx_t estimated_cardinality);
+    AirportInsert(PhysicalPlan &physical_plan,
+                  LogicalOperator &op, SchemaCatalogEntry &schema, unique_ptr<BoundCreateTableInfo> info, idx_t estimated_cardinality);
 
     //! The table to insert into
     optional_ptr<TableCatalogEntry> insert_table;

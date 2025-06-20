@@ -7,7 +7,7 @@ namespace duckdb
   class AirportDeleteParameterized : public PhysicalOperator
   {
   public:
-    AirportDeleteParameterized(LogicalOperator &op, TableCatalogEntry &table, PhysicalOperator &plan);
+    AirportDeleteParameterized(PhysicalPlan &physical_plan, LogicalOperator &op, TableCatalogEntry &table, PhysicalOperator &plan);
 
     //! The table to delete from
     TableCatalogEntry &table;
