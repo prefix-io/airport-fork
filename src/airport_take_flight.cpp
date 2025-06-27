@@ -527,15 +527,17 @@ namespace duckdb
     yyjson_mut_obj_add_val(doc, result_obj, "filters", filters_arr);
     yyjson_mut_obj_add_val(doc, result_obj, "column_binding_names_by_index", column_id_names);
     idx_t len;
+    yyjson_write_err write_error;
     auto data = yyjson_mut_val_write_opts(
         result_obj,
         AirportJSONCommon::WRITE_FLAG,
-        alc, reinterpret_cast<size_t *>(&len), nullptr);
+        alc, reinterpret_cast<size_t *>(&len), &write_error);
 
     if (data == nullptr)
     {
       throw SerializationException(
-          "Failed to serialize json, perhaps the query contains invalid utf8 characters?");
+          "Failed to serialize json, perhaps the query contains invalid utf8 characters? Error %s",
+          write_error.msg);
     }
 
     auto json_result = string(data, (size_t)len);

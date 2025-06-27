@@ -1,0 +1,87 @@
+# name: test/sql/airport-test-types-char.test
+# description: test airport with all data types
+# group: [airport]
+
+# Require statement will ensure this test is run with this extension loaded
+require airport
+
+# Test that the user agent matches what is expected.
+query I
+SELECT airport_user_agent()
+----
+airport/20240820
+
+# Create the initial secret, the token value doesn't matter.
+statement ok
+CREATE SECRET airport_testing (
+  type airport,
+  auth_token 'example_token',
+  scope 'grpc://localhost:50003/');
+
+# Reset the test server
+statement ok
+CALL airport_action('grpc://localhost:50003/', 'reset');
+
+# Create the initial database
+statement ok
+CALL airport_action('grpc://localhost:50003/', 'create_database', 'test1');
+
+statement ok
+ATTACH 'test1' (TYPE  AIRPORT, location 'grpc://localhost:50003/');
+
+
+statement ok
+CREATE SCHEMA test1.test_non_predicate;
+
+statement ok
+use test1.test_non_predicate;
+
+statement ok
+create table test_type_char (v char);
+
+statement ok
+insert into test_type_char values (null);
+
+statement ok
+insert into test_type_char values ('A');
+
+
+query T
+select * from test_type_char order by 1
+----
+A
+NULL
+
+query T
+select v from test_type_char where v = 'A';
+----
+A
+
+
+statement ok
+CREATE SCHEMA test1.test_predicate_pushdown;
+
+statement ok
+use test1.test_predicate_pushdown;
+
+statement ok
+create table test_type_char (v char);
+
+statement ok
+insert into test_type_char values (null);
+
+statement ok
+insert into test_type_char values ('A');
+
+
+query T
+select * from test_type_char order by 1
+----
+A
+NULL
+
+query T
+select v from test_type_char where v = 'A';
+----
+A
+
