@@ -43,19 +43,19 @@ statement ok
 insert into test_type_bytea values (null);
 
 statement ok
-insert into test_type_bytea values ('\x1234567890abcdef');
+insert into test_type_bytea values ('1234567890abcdef');
 
 
 query T
 select * from test_type_bytea order by 1
 ----
-\x1234567890abcdef
+1234567890abcdef
 NULL
 
 query T
-select v from test_type_bytea where v = '\x1234567890abcdef';
+select v from test_type_bytea where v = '1234567890abcdef';
 ----
-\x1234567890abcdef
+1234567890abcdef
 
 
 statement ok
@@ -71,17 +71,17 @@ statement ok
 insert into test_type_bytea values (null);
 
 statement ok
-insert into test_type_bytea values ('\x1234567890abcdef');
+insert into test_type_bytea values ('1234567890abcdef');
 
 
 query T
 select * from test_type_bytea order by 1
 ----
-\x1234567890abcdef
+1234567890abcdef
 NULL
 
 query T
-select v from test_type_bytea where v = '\x1234567890abcdef';
+select v from test_type_bytea where v = '1234567890abcdef';
 ----
-\x1234567890abcdef
+1234567890abcdef
 

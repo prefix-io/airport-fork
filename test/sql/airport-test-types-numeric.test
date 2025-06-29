@@ -46,11 +46,21 @@ statement ok
 insert into test_type_numeric values (123.456);
 
 
+statement ok
+insert into test_type_numeric values (-987.321);
+
+
 query R
 select * from test_type_numeric order by 1
 ----
+-987.321
 123.456
 NULL
+
+query R
+select v from test_type_numeric where v = -987.321;
+----
+-987.321
 
 query R
 select v from test_type_numeric where v = 123.456;
@@ -74,11 +84,21 @@ statement ok
 insert into test_type_numeric values (123.456);
 
 
+statement ok
+insert into test_type_numeric values (-987.321);
+
+
 query R
 select * from test_type_numeric order by 1
 ----
+-987.321
 123.456
 NULL
+
+query R
+select v from test_type_numeric where v = -987.321;
+----
+-987.321
 
 query R
 select v from test_type_numeric where v = 123.456;
