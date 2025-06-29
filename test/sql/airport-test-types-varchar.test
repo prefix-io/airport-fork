@@ -46,16 +46,36 @@ statement ok
 insert into test_type_varchar values ('test');
 
 
+statement ok
+insert into test_type_varchar values ('rusty''s favorite');
+
+
+statement ok
+insert into test_type_varchar values ('🦆');
+
+
 query T
 select * from test_type_varchar order by 1
 ----
+rusty's favorite
 test
+🦆
 NULL
+
+query T
+select v from test_type_varchar where v = 'rusty''s favorite';
+----
+rusty's favorite
 
 query T
 select v from test_type_varchar where v = 'test';
 ----
 test
+
+query T
+select v from test_type_varchar where v = '🦆';
+----
+🦆
 
 
 statement ok
@@ -74,14 +94,34 @@ statement ok
 insert into test_type_varchar values ('test');
 
 
+statement ok
+insert into test_type_varchar values ('rusty''s favorite');
+
+
+statement ok
+insert into test_type_varchar values ('🦆');
+
+
 query T
 select * from test_type_varchar order by 1
 ----
+rusty's favorite
 test
+🦆
 NULL
+
+query T
+select v from test_type_varchar where v = 'rusty''s favorite';
+----
+rusty's favorite
 
 query T
 select v from test_type_varchar where v = 'test';
 ----
 test
+
+query T
+select v from test_type_varchar where v = '🦆';
+----
+🦆
 

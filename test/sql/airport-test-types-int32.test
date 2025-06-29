@@ -46,11 +46,21 @@ statement ok
 insert into test_type_int32 values (12345678);
 
 
+statement ok
+insert into test_type_int32 values (-222292);
+
+
 query I
 select * from test_type_int32 order by 1
 ----
+-222292
 12345678
 NULL
+
+query I
+select v from test_type_int32 where v = -222292;
+----
+-222292
 
 query I
 select v from test_type_int32 where v = 12345678;
@@ -74,11 +84,21 @@ statement ok
 insert into test_type_int32 values (12345678);
 
 
+statement ok
+insert into test_type_int32 values (-222292);
+
+
 query I
 select * from test_type_int32 order by 1
 ----
+-222292
 12345678
 NULL
+
+query I
+select v from test_type_int32 where v = -222292;
+----
+-222292
 
 query I
 select v from test_type_int32 where v = 12345678;
