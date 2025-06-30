@@ -2,14 +2,9 @@
 # description: test airport extension
 # group: [airport]
 
-# Before we load the extension, this will fail
-statement error
-SELECT * from airport_flights('hello');
-----
-Catalog Error: Table Function with name airport_flights does not exist!
-
-# Require statement will ensure this test is run with this extension loaded
 require airport
+
+require-env AIRPORT_TEST_SERVER_AVAILABLE
 
 # Test that the user agent matches what is expected.
 query I

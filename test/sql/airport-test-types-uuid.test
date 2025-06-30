@@ -5,6 +5,8 @@
 # Require statement will ensure this test is run with this extension loaded
 require airport
 
+require-env AIRPORT_TEST_SERVER_AVAILABLE
+
 # Create the initial secret, the token value doesn't matter.
 statement ok
 CREATE SECRET airport_testing (
@@ -40,16 +42,26 @@ statement ok
 insert into test_type_uuid values ('123e4567-e89b-12d3-a456-426614174000');
 
 
+statement ok
+insert into test_type_uuid values ('ffffffff-ffff-ffff-ffff-ffffffffffff');
+
+
 query T
 select * from test_type_uuid order by 1
 ----
 123e4567-e89b-12d3-a456-426614174000
+ffffffff-ffff-ffff-ffff-ffffffffffff
 NULL
 
 query T
 select v from test_type_uuid where v = '123e4567-e89b-12d3-a456-426614174000';
 ----
 123e4567-e89b-12d3-a456-426614174000
+
+query T
+select v from test_type_uuid where v = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+----
+ffffffff-ffff-ffff-ffff-ffffffffffff
 
 
 statement ok
@@ -68,14 +80,24 @@ statement ok
 insert into test_type_uuid values ('123e4567-e89b-12d3-a456-426614174000');
 
 
+statement ok
+insert into test_type_uuid values ('ffffffff-ffff-ffff-ffff-ffffffffffff');
+
+
 query T
 select * from test_type_uuid order by 1
 ----
 123e4567-e89b-12d3-a456-426614174000
+ffffffff-ffff-ffff-ffff-ffffffffffff
 NULL
 
 query T
 select v from test_type_uuid where v = '123e4567-e89b-12d3-a456-426614174000';
 ----
 123e4567-e89b-12d3-a456-426614174000
+
+query T
+select v from test_type_uuid where v = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+----
+ffffffff-ffff-ffff-ffff-ffffffffffff
 
