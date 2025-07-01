@@ -16,13 +16,16 @@ concurrency:
 jobs:
   duckdb-stable-build:
     name: Build extension binaries
-    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
+    #uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
+    uses: rustyconover/extension-ci-tools/.github/workflows/_extension_distribution.yml@313373c99f8293cd615022e01a755132336d30c5
     with:
       duckdb_version: main
       extension_name: airport
-      ci_tools_version: main
+      ci_tools_version: 313373c99f8293cd615022e01a755132336d30c5
       extra_toolchains: parser_tools
       exclude_archs: "wasm_mvp;wasm_eh;wasm_threads;"
+      run_tests_container: "ghcr.io/query-farm/python-airport-test-server:latest"
+      run_tests_container_port: 50003
       vcpkg_binary_sources: ${{ vars.VCPKG_BINARY_SOURCES }}
     secrets:
       VCPKG_CACHING_AWS_ACCESS_KEY_ID: ${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
