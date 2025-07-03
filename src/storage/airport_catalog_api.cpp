@@ -217,15 +217,15 @@ namespace duckdb
     throw InternalException("Airport: Failed to initialize curl");
   }
 
-  static std::pair<const string, const string> GetCachePath(FileSystem &fs, const string &input, const string &baseDir, bool create_if_not_exists)
+  static std::pair<const string, const string> GetCachePath(FileSystem &fs, const string &input, const string &baseDir)
   {
     auto cacheDir = fs.JoinPath(baseDir, "airport_cache");
-    if (create_if_not_exists && !fs.DirectoryExists(baseDir))
+    if (!fs.DirectoryExists(baseDir))
     {
       fs.CreateDirectory(baseDir);
     }
 
-    if (create_if_not_exists && !fs.DirectoryExists(cacheDir))
+    if (!fs.DirectoryExists(cacheDir))
     {
       fs.CreateDirectory(cacheDir);
     }
@@ -239,7 +239,7 @@ namespace duckdb
     auto fileName = input.substr(3);      // Remaining characters for filename
 
     auto subDir = fs.JoinPath(cacheDir, subDirName);
-    if (create_if_not_exists && !fs.DirectoryExists(subDir))
+    if (!fs.DirectoryExists(subDir))
     {
       fs.CreateDirectory(subDir);
     }
@@ -266,7 +266,7 @@ namespace duckdb
     //
     // So we have a sentinel path that indicates the entire contents of the SHA256
     // has already been written out to the cache.
-    auto sentinel_paths = GetCachePath(*fs, collection.source.sha256, baseDir, false);
+    auto sentinel_paths = GetCachePath(*fs, collection.source.sha256, baseDir);
 
     if (fs->FileExists(sentinel_paths.second))
     {
@@ -344,7 +344,7 @@ namespace duckdb
         }
       }
 
-      auto paths = GetCachePath(*fs, item[0], baseDir, true);
+      auto paths = GetCachePath(*fs, item[0], baseDir);
       auto tempFilename = generateTempFilename(*fs, paths.first);
 
       writeToTempFile(*fs, tempFilename, item[1]);
@@ -406,7 +406,7 @@ namespace duckdb
 
     auto fs = FileSystem::CreateLocal();
 
-    auto paths = GetCachePath(*fs, source.sha256, baseDir, false);
+    auto paths = GetCachePath(*fs, source.sha256, baseDir);
 
     // Check if data is in cache
     if (fs->FileExists(paths.second))
