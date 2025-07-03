@@ -220,6 +220,11 @@ namespace duckdb
   static std::pair<const string, const string> GetCachePath(FileSystem &fs, const string &input, const string &baseDir, bool create_if_not_exists)
   {
     auto cacheDir = fs.JoinPath(baseDir, "airport_cache");
+    if (create_if_not_exists && !fs.DirectoryExists(baseDir))
+    {
+      fs.CreateDirectory(baseDir);
+    }
+
     if (create_if_not_exists && !fs.DirectoryExists(cacheDir))
     {
       fs.CreateDirectory(cacheDir);
