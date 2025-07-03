@@ -350,7 +350,10 @@ namespace duckdb
       writeToTempFile(*fs, tempFilename, item[1]);
 
       // Rename the temporary file to the final filename
-      fs->MoveFile(tempFilename, paths.second);
+      if (!fs->FileExists(paths.second))
+      {
+        fs->MoveFile(tempFilename, paths.second);
+      }
     }
 
     // There is a bit of a problem here, we could have an infinite set of
@@ -440,7 +443,10 @@ namespace duckdb
     writeToTempFile(*fs, tempFilename, content);
 
     // Rename the temporary file to the final filename
-    fs->MoveFile(tempFilename, paths.second);
+    if (!fs->FileExists(paths.second))
+    {
+      fs->MoveFile(tempFilename, paths.second);
+    }
     return get_result;
   }
 
