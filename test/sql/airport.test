@@ -4,8 +4,6 @@
 
 require airport
 
-require-env AIRPORT_TEST_SERVER_AVAILABLE
-
 # Test that the user agent matches what is expected.
 query I
 SELECT airport_user_agent()
@@ -16,19 +14,19 @@ airport/20240820
 statement ok
 CREATE SECRET airport_testing (
   type airport,
-  auth_token 'example_token',
-  scope 'grpc://localhost:50003/');
+  auth_token uuid(),
+  scope 'grpc+tls://airport-ci.query.farm');
 
 # Reset the test server
 statement ok
-CALL airport_action('grpc://localhost:50003/', 'reset');
+CALL airport_action('grpc+tls://airport-ci.query.farm', 'reset');
 
 # Create the initial database
 statement ok
-CALL airport_action('grpc://localhost:50003/', 'create_database', 'test1');
+CALL airport_action('grpc+tls://airport-ci.query.farm', 'create_database', 'test1');
 
 statement ok
-ATTACH 'test1' (TYPE  AIRPORT, location 'grpc://localhost:50003/');
+ATTACH 'test1' (TYPE  AIRPORT, location 'grpc+tls://airport-ci.query.farm');
 
 statement ok
 CREATE SCHEMA test1.test_schema;
@@ -364,7 +362,7 @@ select description, id, counter from products;
 product1	123e4567-e89b-12d3-a456-426614174000	1234567890123456789
 
 statement ok
-ATTACH 'test1' as test2 (TYPE  AIRPORT, location 'grpc://localhost:50003/');
+ATTACH 'test1' as test2 (TYPE  AIRPORT, location 'grpc+tls://airport-ci.query.farm');
 
 query ITTT
 SELECT age, name, city, address FROM test2.test_schema.workers order by 1, 2;
@@ -712,4 +710,6 @@ select age from test1.test_schema.version_test AT (VERSION => 2)
 ----
 Binder Error: Referenced column "age" not found in FROM clause!
 
-
+# Reset the test server
+statement ok
+CALL airport_action('grpc+tls://airport-ci.query.farm', 'reset');
