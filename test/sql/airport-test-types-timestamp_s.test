@@ -5,23 +5,26 @@
 # Require statement will ensure this test is run with this extension loaded
 require airport
 
+# Require test server URL
+require-env AIRPORT_TEST_SERVER
+
 # Create the initial secret, the token value doesn't matter.
 statement ok
 CREATE SECRET airport_testing (
   type airport,
   auth_token uuid(),
-  scope 'grpc+tls://airport-ci.query.farm/');
+  scope '${AIRPORT_TEST_SERVER}');
 
 # Reset the test server
 statement ok
-CALL airport_action('grpc+tls://airport-ci.query.farm/', 'reset');
+CALL airport_action('${AIRPORT_TEST_SERVER}', 'reset');
 
 # Create the initial database
 statement ok
-CALL airport_action('grpc+tls://airport-ci.query.farm/', 'create_database', 'test1');
+CALL airport_action('${AIRPORT_TEST_SERVER}', 'create_database', 'test1');
 
 statement ok
-ATTACH 'test1' (TYPE  AIRPORT, location 'grpc+tls://airport-ci.query.farm/');
+ATTACH 'test1' (TYPE  AIRPORT, location '${AIRPORT_TEST_SERVER}');
 
 
 statement ok
@@ -81,5 +84,5 @@ select v from test_type_timestamp_s where v = '2023-10-01 12:34:56';
 
 # Reset the test server
     statement ok
-    CALL airport_action('grpc+tls://airport-ci.query.farm/', 'reset');
-    
+    CALL airport_action('${AIRPORT_TEST_SERVER}', 'reset');
+
