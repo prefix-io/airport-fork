@@ -16,14 +16,15 @@ concurrency:
 jobs:
   duckdb-stable-build:
     name: Build extension binaries
-    uses: rustyconover/extension-ci-tools/.github/workflows/_extension_distribution.yml@4df3ea8068d438631d85d08f7e9e8b2bc8fab64e
+    uses: rustyconover/extension-ci-tools/.github/workflows/_extension_distribution.yml@6df5fa385ddb6bdded4708094dc02407eac5bb0c
     with:
       duckdb_version: main
       extension_name: airport
-      ci_tools_version: 4df3ea8068d438631d85d08f7e9e8b2bc8fab64e
+      ci_tools_version: 6df5fa385ddb6bdded4708094dc02407eac5bb0c
       extra_toolchains: parser_tools
       exclude_archs: "wasm_mvp;wasm_eh;wasm_threads;"
       vcpkg_binary_sources: ${{ vars.VCPKG_BINARY_SOURCES }}
+      test_env_vars: "{ \"AIRPORT_CI_URL\": \"grpc+tls://airport-ci.query.farm\" }"
     secrets:
       VCPKG_CACHING_AWS_ACCESS_KEY_ID: ${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
       VCPKG_CACHING_AWS_SECRET_ACCESS_KEY: ${{ secrets.VCPKG_CACHING_AWS_SECRET_ACCESS_KEY }}
