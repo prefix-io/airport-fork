@@ -13,7 +13,7 @@ namespace duckdb
 
     idx_t MaxThreads() const override
     {
-      return endpoints_.size() == 0 ? 1 : endpoints_.size();
+      return endpoints_.size();
     }
 
     bool CanRemoveFilterColumns() const
