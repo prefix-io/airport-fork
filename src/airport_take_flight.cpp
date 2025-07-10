@@ -443,8 +443,14 @@ namespace duckdb
 
   void AirportTakeFlight(ClientContext &context, TableFunctionInput &data_p, DataChunk &output)
   {
-    // All of these should be defined.
-    D_ASSERT(data_p.local_state);
+    // If the local state is null, it means there were no endpoints to scan,
+    // so just return the empty output.
+    if (data_p.local_state == nullptr)
+    {
+      output.SetCardinality(0);
+      return;
+    }
+
     D_ASSERT(data_p.global_state);
     D_ASSERT(data_p.bind_data);
     auto &state = data_p.local_state->Cast<AirportArrowScanLocalState>();
@@ -815,6 +821,11 @@ namespace duckdb
   {
     auto flight_client = AirportAPI::FlightClientForLocation(bind_data.server_location());
 
+    if (endpoint.locations.empty())
+    {
+      throw AirportFlightException(bind_data.server_location(), "No locations specified in flight endpoint");
+    }
+
     auto &location = endpoint.locations.front();
 
     auto server_location = location.ToString();
@@ -1063,7 +1074,12 @@ namespace duckdb
     auto &global_state = global_state_p->Cast<AirportArrowScanGlobalState>();
 
     auto &endpoint_opt = global_state.GetNextEndpoint();
-    D_ASSERT(endpoint_opt != std::nullopt);
+
+    // If there are no endpoints, don't create a local state.
+    if (!endpoint_opt)
+    {
+      return nullptr;
+    }
 
     auto current_chunk = make_uniq<ArrowArrayWrapper>();
     auto result = make_uniq<AirportArrowScanLocalState>(
