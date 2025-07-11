@@ -394,6 +394,7 @@ namespace duckdb
 
   struct AirportDynamicTableInOutGlobalState : public GlobalTableFunctionState, public AirportExchangeGlobalState
   {
+    mutable mutex lock;
   };
 
   struct AirportTableFunctionInOutParameters
@@ -563,8 +564,7 @@ namespace duckdb
                                                    DataChunk &output)
   {
     auto &global_state = data_p.global_state->Cast<AirportDynamicTableInOutGlobalState>();
-
-    // We need to send data to the server.
+    lock_guard<mutex> l(global_state.lock);
 
     auto appender = make_uniq<ArrowAppender>(
         input.GetTypes(),
@@ -624,6 +624,8 @@ namespace duckdb
                                                                    DataChunk &output)
   {
     auto &global_state = data_p.global_state->Cast<AirportDynamicTableInOutGlobalState>();
+    lock_guard<mutex> l(global_state.lock);
+
     const arrow::Buffer finished_buffer("finished");
 
     // So we need to send data to the server.
