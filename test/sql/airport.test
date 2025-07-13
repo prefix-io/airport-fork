@@ -720,3 +720,6 @@ CALL airport_action('${AIRPORT_TEST_SERVER}', 'reset');
 # Check that statistics work
 statement ok
 select * from test1.static_data.employees;
+
+statement ok
+select airport_version();

@@ -14,6 +14,8 @@
 #include "airport_scalar_function.hpp"
 #include <curl/curl.h>
 
+#define AIRPORT_EXTENSION_VERSION "20260713.01"
+
 namespace duckdb
 {
 
@@ -115,14 +117,21 @@ namespace duckdb
         }
     };
 
-    inline void get_user_agent(DataChunk &args, ExpressionState &state, Vector &result)
+    static inline void get_user_agent(DataChunk &args, ExpressionState &state, Vector &result)
     {
         D_ASSERT(args.ColumnCount() == 0);
         Value val(airport_user_agent());
         result.Reference(val);
     }
 
-    void AirportAddUserAgentFunction(ExtensionLoader &loader)
+    static inline void get_airport_version(DataChunk &args, ExpressionState &state, Vector &result)
+    {
+        D_ASSERT(args.ColumnCount() == 0);
+        Value val(AIRPORT_EXTENSION_VERSION);
+        result.Reference(val);
+    }
+
+    static void AirportAddSimpleFunctions(ExtensionLoader &loader)
     {
         loader.RegisterFunction(
             ScalarFunction(
@@ -130,6 +139,13 @@ namespace duckdb
                 {},
                 LogicalType::VARCHAR,
                 get_user_agent));
+
+        loader.RegisterFunction(
+            ScalarFunction(
+                "airport_version",
+                {},
+                LogicalType::VARCHAR,
+                get_airport_version));
     }
 
     static void RegisterTableMacro(ExtensionLoader &loader, const string &name, const string &query,
@@ -184,7 +200,7 @@ namespace duckdb
 
         AirportAddListFlightsFunction(loader);
         AirportAddTakeFlightFunction(loader);
-        AirportAddUserAgentFunction(loader);
+        AirportAddSimpleFunctions(loader);
         AirportAddActionFlightFunction(loader);
 
         // So to create a new macro for airport_list_databases
@@ -223,7 +239,7 @@ namespace duckdb
 
     std::string AirportExtension::Version() const
     {
-        return "user-agent=" + airport_user_agent() + ",client=2025050401";
+        return "user-agent=" + airport_user_agent() + ",client=" + AIRPORT_EXTENSION_VERSION;
     }
 
 } // namespace duckdb
