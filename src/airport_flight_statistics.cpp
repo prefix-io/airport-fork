@@ -247,7 +247,6 @@ namespace duckdb
     case LogicalTypeId::DATE:
     case LogicalTypeId::TIME:
     case LogicalTypeId::TIME_TZ:
-    case LogicalTypeId::TIME_NS:
     case LogicalTypeId::DECIMAL:
     case LogicalTypeId::VARINT:
 
