@@ -17,6 +17,8 @@
 #include "airport_scalar_function.hpp"
 #include <curl/curl.h>
 
+#define AIRPORT_EXTENSION_VERSION "20260713.01"
+
 namespace duckdb
 {
 
@@ -118,14 +120,25 @@ namespace duckdb
         }
     };
 
-    inline void get_user_agent(DataChunk &args, ExpressionState &state, Vector &result)
+    static inline void get_user_agent(DataChunk &args, ExpressionState &state, Vector &result)
     {
         D_ASSERT(args.ColumnCount() == 0);
         Value val(airport_user_agent());
         result.Reference(val);
     }
 
+<<<<<<< HEAD
     void AirportAddUserAgentFunction(DatabaseInstance &instance)
+=======
+    static inline void get_airport_version(DataChunk &args, ExpressionState &state, Vector &result)
+    {
+        D_ASSERT(args.ColumnCount() == 0);
+        Value val(AIRPORT_EXTENSION_VERSION);
+        result.Reference(val);
+    }
+
+    static void AirportAddSimpleFunctions(ExtensionLoader &loader)
+>>>>>>> e20bb5f (fix: add airport_version function)
     {
         ExtensionUtil::RegisterFunction(
             instance,
@@ -134,6 +147,13 @@ namespace duckdb
                 {},
                 LogicalType::VARCHAR,
                 get_user_agent));
+
+        loader.RegisterFunction(
+            ScalarFunction(
+                "airport_version",
+                {},
+                LogicalType::VARCHAR,
+                get_airport_version));
     }
 
     static void RegisterTableMacro(DatabaseInstance &db, const string &name, const string &query,
@@ -186,10 +206,17 @@ namespace duckdb
     {
         curl_global_init(CURL_GLOBAL_DEFAULT);
 
+<<<<<<< HEAD
         AirportAddListFlightsFunction(instance);
         AirportAddTakeFlightFunction(instance);
         AirportAddUserAgentFunction(instance);
         AirportAddActionFlightFunction(instance);
+=======
+        AirportAddListFlightsFunction(loader);
+        AirportAddTakeFlightFunction(loader);
+        AirportAddSimpleFunctions(loader);
+        AirportAddActionFlightFunction(loader);
+>>>>>>> e20bb5f (fix: add airport_version function)
 
         // So to create a new macro for airport_list_databases
         // that calls airport_take_flight with a fixed flight descriptor
@@ -227,7 +254,7 @@ namespace duckdb
 
     std::string AirportExtension::Version() const
     {
-        return "user-agent=" + airport_user_agent() + ",client=2025050401";
+        return "user-agent=" + airport_user_agent() + ",client=" + AIRPORT_EXTENSION_VERSION;
     }
 
 } // namespace duckdb
