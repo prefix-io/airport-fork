@@ -134,7 +134,7 @@ namespace duckdb
         result.Reference(val);
     }
 
-    static void AirportAddSimpleFunctions(ExtensionLoader &loader)
+    static void AirportAddSimpleFunctions(DatabaseInstance &instance)
     {
         ExtensionUtil::RegisterFunction(
             instance,
@@ -144,7 +144,8 @@ namespace duckdb
                 LogicalType::VARCHAR,
                 get_user_agent));
 
-        loader.RegisterFunction(
+        ExtensionUtil::RegisterFunction(
+            instance,
             ScalarFunction(
                 "airport_version",
                 {},
@@ -202,10 +203,10 @@ namespace duckdb
     {
         curl_global_init(CURL_GLOBAL_DEFAULT);
 
-        AirportAddListFlightsFunction(loader);
-        AirportAddTakeFlightFunction(loader);
-        AirportAddSimpleFunctions(loader);
-        AirportAddActionFlightFunction(loader);
+        AirportAddListFlightsFunction(instance);
+        AirportAddTakeFlightFunction(instance);
+        AirportAddSimpleFunctions(instance);
+        AirportAddActionFlightFunction(instance);
 
         // So to create a new macro for airport_list_databases
         // that calls airport_take_flight with a fixed flight descriptor
