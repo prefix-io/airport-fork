@@ -35,109 +35,6 @@ namespace duckdb
     MSGPACK_DEFINE_MAP(flight_descriptor, column_name, type)
   };
 
-  struct AirportGetFlightColumnStatisticsNumericValue
-  {
-    bool boolean = false;
-    int8_t tinyint = 0;
-    int16_t smallint = 0;
-    int32_t integer = 0;
-    int64_t bigint = 0;
-    uint8_t utinyint = 0;
-    uint16_t usmallint = 0;
-    uint32_t uinteger = 0;
-    uint64_t ubigint = 0;
-
-    uint64_t hugeint_high = 0;
-    uint64_t hugeint_low = 0;
-
-    float float_ = 0.0;   // NOLINT
-    double double_ = 0.0; // NOLINT
-
-    MSGPACK_DEFINE_MAP(boolean, tinyint, smallint, integer, bigint, utinyint, usmallint, uinteger, ubigint,
-                       hugeint_high, hugeint_low,
-                       float_, double_)
-  };
-
-  static Value AirportGetValueForDuckDBType(LogicalTypeId type, const AirportGetFlightColumnStatisticsNumericValue &v)
-  {
-    switch (type)
-    {
-    case LogicalTypeId::BOOLEAN:
-      return Value::BOOLEAN(v.boolean);
-    case LogicalTypeId::TINYINT:
-      return Value::TINYINT(v.tinyint);
-    case LogicalTypeId::SMALLINT:
-      return Value::SMALLINT(v.smallint);
-    case LogicalTypeId::INTEGER:
-      return Value::INTEGER(v.integer);
-    case LogicalTypeId::BIGINT:
-      return Value::BIGINT(v.bigint);
-    case LogicalTypeId::UTINYINT:
-      return Value::UTINYINT(v.utinyint);
-    case LogicalTypeId::USMALLINT:
-      return Value::USMALLINT(v.usmallint);
-    case LogicalTypeId::UINTEGER:
-      return Value::UINTEGER(v.uinteger);
-    case LogicalTypeId::UBIGINT:
-      return Value::UBIGINT(v.ubigint);
-    case LogicalTypeId::TIMESTAMP_TZ:
-      return Value::TIMESTAMPTZ(timestamp_tz_t(v.bigint));
-    case LogicalTypeId::HUGEINT:
-    {
-      hugeint_t t = ((hugeint_t)v.hugeint_high << 64) | v.hugeint_low;
-      return Value::HUGEINT(t);
-    }
-    case LogicalTypeId::UHUGEINT:
-    {
-      uhugeint_t t = ((uhugeint_t)v.hugeint_high << 64) | v.hugeint_low;
-      return Value::UHUGEINT(t);
-    }
-    case LogicalTypeId::FLOAT:
-      return Value::FLOAT(v.float_);
-    case LogicalTypeId::DOUBLE:
-      return Value::DOUBLE(v.double_);
-    default:
-      throw InvalidInputException("Unknown type passed to GetValueForType");
-    }
-  }
-
-  struct AirportGetFlightColumnStatisticsNumericStatsData
-  {
-    //! Whether or not the value has a max value
-    bool has_min = false;
-    //! Whether or not the segment has a min value
-    bool has_max = false;
-    //! The minimum value of the segment
-    AirportGetFlightColumnStatisticsNumericValue min;
-    //! The maximum value of the segment
-    AirportGetFlightColumnStatisticsNumericValue max;
-
-    MSGPACK_DEFINE_MAP(has_min, has_max, min, max)
-  };
-
-  struct AirportGetFlightColumnStatisticsStringData
-  {
-    std::string min;
-    std::string max;
-    MSGPACK_DEFINE_MAP(min, max)
-  };
-
-  struct AirportGetFlightColumnStatisticsResult
-  {
-    //! Whether or not the segment can contain NULL values
-    bool has_null = false;
-    //! Whether or not the segment can contain values that are not null
-    bool has_no_null = false;
-    // estimate that one may have even if distinct_stats==nullptr
-    idx_t distinct_count = 0;
-
-    //! Numeric and String stats
-    AirportGetFlightColumnStatisticsNumericStatsData numeric_stats;
-    AirportGetFlightColumnStatisticsStringData string_stats;
-
-    MSGPACK_DEFINE_MAP(has_null, has_no_null, distinct_count, numeric_stats, string_stats)
-  };
-
   unique_ptr<BaseStatistics> AirportTakeFlightStatistics(ClientContext &context, const FunctionData *bind_data, column_t column_index)
   {
     auto &data = bind_data->Cast<AirportTakeFlightBindData>();
@@ -190,11 +87,13 @@ namespace duckdb
 
     auto &server_location = data.take_flight_params().server_location();
 
+    auto descriptor = AirportLocationDescriptor(server_location, data.descriptor());
+
     AirportGetFlightColumnStatistics params;
-    AIRPORT_ASSIGN_OR_RAISE_LOCATION(
+    AIRPORT_ASSIGN_OR_RAISE_CONTAINER(
         params.flight_descriptor,
         data.descriptor().SerializeToString(),
-        server_location,
+        &descriptor,
         "take_flight_statistics");
     params.column_name = schema->name;
     params.type = duck_type.ToString();
@@ -203,47 +102,130 @@ namespace duckdb
     call_options.headers.emplace_back("airport-action-name", "column_statistics");
     AIRPORT_MSGPACK_ACTION_SINGLE_PARAMETER(action, "column_statistics", params);
 
-    AIRPORT_ASSIGN_OR_RAISE_LOCATION(auto action_results,
-                                     flight_client->DoAction(call_options, action),
-                                     server_location,
-                                     "take_flight_statitics");
+    AIRPORT_ASSIGN_OR_RAISE_CONTAINER(auto action_results,
+                                      flight_client->DoAction(call_options, action),
+                                      &descriptor,
+                                      "take_flight_statistics");
 
-    // The only item returned is a serialized flight info.
-    AIRPORT_ASSIGN_OR_RAISE_LOCATION(auto stats_buffer,
-                                     action_results->Next(),
-                                     server_location,
-                                     "reading take_flight_statistics for a column");
+    // The only item returned is a serialized column statistics.
+    AIRPORT_ASSIGN_OR_RAISE_CONTAINER(auto stats_buffer,
+                                      action_results->Next(),
+                                      &descriptor,
+                                      "reading take_flight_statistics for a column");
 
-    std::string_view serialized_column_statistics(reinterpret_cast<const char *>(stats_buffer->body->data()), stats_buffer->body->size());
+    AIRPORT_ARROW_ASSERT_OK_CONTAINER(action_results->Drain(),
+                                      &descriptor,
+                                      "");
 
-    AIRPORT_MSGPACK_UNPACK(AirportGetFlightColumnStatisticsResult,
-                           col_stats,
-                           (*(stats_buffer->body)),
-                           server_location,
-                           "File to parse msgpack encoded column statistics");
+    // Rather than doing this whole thing with msgpack, why not just return a single
+    // row of an Arrow RecordBatch with the statistics.
 
-    AIRPORT_ARROW_ASSERT_OK_LOCATION(action_results->Drain(),
-                                     server_location,
-                                     "");
+    auto reader = std::make_unique<arrow::io::BufferReader>(stats_buffer->body);
+
+    AIRPORT_ASSIGN_OR_RAISE_CONTAINER(
+        auto stats_reader,
+        arrow::ipc::RecordBatchStreamReader::Open(std::move(reader)),
+        &descriptor, "");
+
+    // Load it into a DataChunk so that all of the types will be easier to work with.
+
+    auto const stats_schema = stats_reader->schema();
+
+    ArrowSchemaWrapper schema_root;
+
+    AIRPORT_ARROW_ASSERT_OK_CONTAINER(
+        ExportSchema(*stats_schema, &schema_root.arrow_schema),
+        &descriptor,
+        "ExportSchema");
+
+    vector<LogicalType> all_types;
+    //    vector<std::string> parameter_names;
+    ArrowTableType arrow_table;
+    std::unordered_map<std::string, idx_t> name_indexes;
+
+    for (idx_t col_index = 0; col_index < schema_root.arrow_schema.n_children; col_index++)
+    {
+      auto &schema_item = *schema_root.arrow_schema.children[col_index];
+
+      auto arrow_type = ArrowType::GetArrowLogicalType(config, schema_item);
+
+      if (schema_item.dictionary)
+      {
+        auto dictionary_type = ArrowType::GetArrowLogicalType(config, *schema_item.dictionary);
+        arrow_type->SetDictionary(std::move(dictionary_type));
+      }
+
+      all_types.push_back(arrow_type->GetDuckType());
+      arrow_table.AddColumn(col_index, std::move(arrow_type));
+      name_indexes[schema_item.name] = col_index;
+    }
+
+    AIRPORT_ASSIGN_OR_RAISE_CONTAINER(
+        std::shared_ptr<arrow::RecordBatch> batch,
+        stats_reader->Next(),
+        &descriptor,
+        "Failed to read batch from statistics arrow table");
+
+    ArrowSchema c_schema;
+
+    auto current_chunk = make_uniq<ArrowArrayWrapper>();
+
+    AIRPORT_ARROW_ASSERT_OK_CONTAINER(
+        arrow::ExportRecordBatch(*batch, &current_chunk->arrow_array, &c_schema),
+        &descriptor,
+        "Failed to export record batch from statistics arrow table");
+
+    // Extract the values.
+    DataChunk stats_chunk;
+    stats_chunk.Initialize(Allocator::Get(context),
+                           all_types,
+                           current_chunk->arrow_array.length);
+
+    stats_chunk.SetCardinality(current_chunk->arrow_array.length);
+
+    D_ASSERT(current_chunk->arrow_array.length == 1);
+
+    ArrowScanLocalState fake_local_state(
+        std::move(current_chunk),
+        context);
+
+    ArrowTableFunction::ArrowToDuckDB(fake_local_state,
+                                      arrow_table.GetColumns(),
+                                      stats_chunk,
+                                      0,
+                                      false);
+
+    stats_chunk.Verify();
+
+    auto required_fields = {"min", "max", "has_not_null", "has_null", "distinct_count"};
+    for (const auto &field : required_fields)
+    {
+      if (name_indexes.find(field) == name_indexes.end())
+      {
+        throw InvalidInputException("Statistics for column %s are missing required field %s", schema->name, field);
+      }
+    }
 
     switch (duck_type.id())
     {
     case LogicalTypeId::VARCHAR:
+    case LogicalTypeId::BLOB:
     {
-      auto result = StringStats::CreateEmpty(LogicalType(duck_type.id()));
-      if (col_stats.has_no_null)
+      auto r = StringStats::CreateEmpty(LogicalType(duck_type.id()));
+      StringStats::Update(r, stats_chunk.data[name_indexes["min"]].GetValue(0).GetValue<string>());
+      StringStats::Update(r, stats_chunk.data[name_indexes["max"]].GetValue(0).GetValue<string>());
+      if (stats_chunk.data[name_indexes["has_not_null"]].GetValue(0).GetValue<bool>())
       {
-        result.SetHasNoNull();
+        r.SetHasNoNull();
       }
-      if (col_stats.has_null)
+      if (stats_chunk.data[name_indexes["has_null"]].GetValue(0).GetValue<bool>())
       {
-        result.SetHasNull();
+        r.SetHasNull();
       }
-      result.SetDistinctCount(col_stats.distinct_count);
-      StringStats::Update(result, col_stats.string_stats.min);
-      StringStats::Update(result, col_stats.string_stats.max);
-      return result.ToUnique();
+      r.SetDistinctCount(stats_chunk.data[name_indexes["distinct_count"]].GetValue(0).GetValue<int64_t>());
+      return r.ToUnique();
     }
+    case LogicalTypeId::UUID:
     case LogicalTypeId::BOOLEAN:
     case LogicalTypeId::TINYINT:
     case LogicalTypeId::SMALLINT:
@@ -258,20 +240,33 @@ namespace duckdb
     case LogicalTypeId::FLOAT:
     case LogicalTypeId::DOUBLE:
     case LogicalTypeId::TIMESTAMP_TZ:
+    case LogicalTypeId::TIMESTAMP:
+    case LogicalTypeId::TIMESTAMP_MS:
+    case LogicalTypeId::TIMESTAMP_SEC:
+    case LogicalTypeId::TIMESTAMP_NS:
+    case LogicalTypeId::DATE:
+    case LogicalTypeId::TIME:
+    case LogicalTypeId::TIME_TZ:
+    case LogicalTypeId::TIME_NS:
+    case LogicalTypeId::DECIMAL:
+    case LogicalTypeId::VARINT:
+
     {
-      auto result = NumericStats::CreateEmpty(LogicalType(duck_type.id()));
-      if (col_stats.has_no_null)
+      auto r = NumericStats::CreateEmpty(duck_type);
+
+      NumericStats::SetMin(r, stats_chunk.data[name_indexes["min"]].GetValue(0));
+      NumericStats::SetMax(r, stats_chunk.data[name_indexes["max"]].GetValue(0));
+      if (stats_chunk.data[name_indexes["has_not_null"]].GetValue(0).GetValue<bool>())
       {
-        result.SetHasNoNull();
+        r.SetHasNoNull();
       }
-      if (col_stats.has_null)
+      if (stats_chunk.data[name_indexes["has_null"]].GetValue(0).GetValue<bool>())
       {
-        result.SetHasNull();
+        r.SetHasNull();
       }
-      result.SetDistinctCount(col_stats.distinct_count);
-      NumericStats::SetMin(result, AirportGetValueForDuckDBType(duck_type.id(), col_stats.numeric_stats.min));
-      NumericStats::SetMax(result, AirportGetValueForDuckDBType(duck_type.id(), col_stats.numeric_stats.max));
-      return result.ToUnique();
+      r.SetDistinctCount(stats_chunk.data[name_indexes["distinct_count"]].GetValue(0).GetValue<idx_t>());
+
+      return r.ToUnique();
     }
     case LogicalTypeId::ARRAY:
     case LogicalTypeId::LIST:
@@ -283,5 +278,4 @@ namespace duckdb
       throw NotImplementedException("Statistics for type %s not implemented", duck_type.ToString());
     }
   }
-
 }
