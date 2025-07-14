@@ -9,6 +9,9 @@
       "name": "msgpack"
     },
     {
+      "name": "openssl"
+    },
+    {
       "name": "arrow",
       "default-features": false,
       "features": [
