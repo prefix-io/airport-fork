@@ -1,78 +1,47 @@
 #include "airport_telemetry.hpp"
-#include <curl/curl.h>
 #include <thread>
-#include <iostream>
-#include <cstdlib>
-#include <ctime>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <chrono>
+#include "duckdb.hpp"
+#include "duckdb/common/http_util.hpp"
 
-// Static member definitions
-constexpr const char *AirportTelemetrySender::PROBABILITY_HOSTNAME;
-constexpr const char *AirportTelemetrySender::TARGET_URL;
-// Callback function to handle response data (we don't need to store it)
-size_t AirportTelemetrySender::WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
+namespace duckdb
 {
-  return size * nmemb; // Just discard the response
-}
+  // Static member definitions
+  constexpr const char *AirportTelemetrySender::TARGET_URL;
 
-// Function to send the actual HTTP request
-void AirportTelemetrySender::sendHTTPRequest(const std::string &json_body)
-{
-  CURL *curl = curl_easy_init();
-  if (!curl)
+  // Function to send the actual HTTP request
+
+  void AirportTelemetrySender::sendHTTPRequest(shared_ptr<DatabaseInstance> db, std::string json_body)
   {
+    HTTPHeaders headers;
+    headers.Insert("Content-Type", "application/json");
+
+    auto &http_util = HTTPUtil::Get(*db);
+    unique_ptr<HTTPParams> params;
+    auto target_url = string(TARGET_URL);
+    params = http_util.InitializeParameters(*db, target_url);
+
+    PostRequestInfo post_request(target_url,
+                                 headers,
+                                 *params,
+                                 reinterpret_cast<const_data_ptr_t>(json_body.data()),
+                                 json_body.size());
+    try
+    {
+      auto response = http_util.Request(post_request);
+    }
+    catch (const std::exception &e)
+    {
+      // ignore all errors.
+    }
+
     return;
   }
 
-  // Set up headers
-  struct curl_slist *headers = nullptr;
-  headers = curl_slist_append(headers, "Content-Type: application/json");
-
-  // Configure curl options
-  curl_easy_setopt(curl, CURLOPT_URL, TARGET_URL);
-  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body.c_str());
-  curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, json_body.length());
-  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-  curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L); // 30 second timeout
-  curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-
-  // Perform the request
-  CURLcode res = curl_easy_perform(curl);
-
-  if (res != CURLE_OK)
+  // Public function to start the request thread
+  void AirportTelemetrySender::sendRequestAsync(shared_ptr<DatabaseInstance> db, std::string &json_body)
   {
-    return;
+    std::thread request_thread(sendHTTPRequest, db, std::move(json_body));
+    request_thread.detach(); // Let the thread run independently
   }
 
-  // Cleanup
-  curl_slist_free_all(headers);
-  curl_easy_cleanup(curl);
-}
-
-// Thread function that handles the entire process
-void AirportTelemetrySender::requestThread(std::string json_body)
-{
-  sendHTTPRequest(json_body);
-}
-
-// Public function to start the request thread
-void AirportTelemetrySender::sendRequestAsync(const std::string &json_body)
-{
-  std::thread request_thread(requestThread, json_body);
-  request_thread.detach(); // Let the thread run independently
-}
-
-// Initialize curl globally (call once at program start)
-void AirportTelemetrySender::initializeCurl()
-{
-  curl_global_init(CURL_GLOBAL_DEFAULT);
-}
-
-// Cleanup curl globally (call once at program end)
-void AirportTelemetrySender::cleanupCurl()
-{
-  curl_global_cleanup();
 }

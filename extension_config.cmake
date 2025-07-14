@@ -6,5 +6,7 @@ duckdb_extension_load(airport
     LOAD_TESTS
 )
 
+duckdb_extension_load(httpfs)
+
 # Any extra extensions that should be built
 # e.g.: duckdb_extension_load(json)

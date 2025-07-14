@@ -18,6 +18,7 @@
 #include "airport_json_common.hpp"
 #include <curl/curl.h>
 #include "airport_telemetry.hpp"
+#include "duckdb/main/extension_helper.hpp"
 
 #define AIRPORT_EXTENSION_VERSION "20250713.01"
 
@@ -201,10 +202,8 @@ namespace duckdb
             named_params);
     }
 
-    static void SendTelemetry()
+    static void SendTelemetry(shared_ptr<DatabaseInstance> db)
     {
-        AirportTelemetrySender::initializeCurl();
-
         // Initialize the telemetry sender
         auto doc = yyjson_mut_doc_new(nullptr);
 
@@ -235,12 +234,14 @@ namespace duckdb
         auto telemetry_string = string(telemetry_data, (size_t)telemetry_len);
 
         // Send request asynchronously
-        AirportTelemetrySender::sendRequestAsync(telemetry_string);
+        AirportTelemetrySender::sendRequestAsync(db, telemetry_string);
     }
 
     static void LoadInternal(DatabaseInstance &instance)
     {
         curl_global_init(CURL_GLOBAL_DEFAULT);
+
+        ExtensionHelper::AutoLoadExtension(instance, "httpfs");
 
         AirportAddListFlightsFunction(instance);
         AirportAddTakeFlightFunction(instance);
@@ -271,7 +272,7 @@ namespace duckdb
         airport_optimizer.optimize_function = AirportOptimizer::Optimize;
         config.optimizer_extensions.push_back(std::move(airport_optimizer));
 
-        SendTelemetry();
+        SendTelemetry(instance.shared_from_this());
     }
 
     void AirportExtension::Load(DuckDB &db)
