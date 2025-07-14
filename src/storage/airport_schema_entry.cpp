@@ -10,7 +10,6 @@
 #include "duckdb/parser/parsed_data/alter_info.hpp"
 #include "duckdb/parser/parsed_data/alter_table_info.hpp"
 #include "duckdb/parser/parsed_expression_iterator.hpp"
-#include "storage/airport_curl_pool.hpp"
 #include "airport_request_headers.hpp"
 #include "storage/airport_catalog.hpp"
 #include "airport_macros.hpp"
@@ -21,9 +20,9 @@ namespace duckdb
 {
 
   AirportSchemaEntry::AirportSchemaEntry(Catalog &catalog,
-                                         CreateSchemaInfo &info, AirportCurlPool &connection_pool, const string &cache_directory,
+                                         CreateSchemaInfo &info, const string &cache_directory,
                                          const AirportAPISchema &schema_data)
-      : SchemaCatalogEntry(catalog, info), schema_data_(schema_data), tables(connection_pool, *this, cache_directory), scalar_functions(connection_pool, *this, cache_directory), table_functions(connection_pool, *this, cache_directory)
+      : SchemaCatalogEntry(catalog, info), schema_data_(schema_data), tables(*this, cache_directory), scalar_functions(*this, cache_directory), table_functions(*this, cache_directory)
   {
   }
 

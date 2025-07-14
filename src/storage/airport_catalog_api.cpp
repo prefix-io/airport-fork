@@ -6,7 +6,6 @@
 #include <random>
 #include <string_view>
 #include <vector>
-#include <curl/curl.h>
 
 #include <arrow/flight/client.h>
 #include <arrow/flight/types.h>
@@ -24,6 +23,8 @@
 #include "airport_request_headers.hpp"
 #include "duckdb/common/arrow/schema_metadata.hpp"
 #include "airport_schema_utils.hpp"
+
+#include "duckdb/common/http_util.hpp"
 
 namespace flight = arrow::flight;
 
@@ -125,12 +126,6 @@ namespace duckdb
     return airport_flight_clients_by_location[location];
   }
 
-  static size_t GetRequestWriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
-  {
-    ((std::string *)userp)->append(reinterpret_cast<const char *>(contents), size * nmemb);
-    return size * nmemb;
-  }
-
   static std::string SHA256ForString(const std::string_view &input)
   {
     EVP_MD_CTX *context = EVP_MD_CTX_new();
@@ -175,46 +170,38 @@ namespace duckdb
     return ss.str();
   }
 
-  static std::pair<long, std::string> GetRequest(CURL *curl, const string &url, const string expected_sha256)
+  static std::pair<HTTPStatusCode, std::string> GetRequest(ClientContext &context, const string &url, const string expected_sha256)
   {
-    CURLcode res;
-    string readBuffer;
-    long http_code = 0;
+    HTTPHeaders headers;
 
-    if (curl)
+    auto &http_util = HTTPUtil::Get(*context.db);
+    unique_ptr<HTTPParams> params;
+    auto target_url = string(url);
+    params = http_util.InitializeParameters(context, target_url);
+
+    GetRequestInfo get_request(target_url,
+                               headers,
+                               *params,
+                               nullptr,
+                               nullptr);
+
+    auto response = http_util.Request(get_request);
+
+    if (response->status != HTTPStatusCode::OK_200 || expected_sha256.empty())
     {
-      // Enable HTTP/2
-      curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2);
-      curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-      curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, GetRequestWriteCallback);
-      curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
-      res = curl_easy_perform(curl);
-
-      if (res != CURLcode::CURLE_OK)
-      {
-        string error = curl_easy_strerror(res);
-        throw IOException("Airport: Curl Request to " + url + " failed with error: " + error);
-      }
-      // Get the HTTP response code
-      curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
-
-      if (http_code != 200 || expected_sha256.empty())
-      {
-        return std::make_pair(http_code, readBuffer);
-      }
-
-      // Verify that the SHA256 matches the returned data, don't want a server to
-      // corrupt the data.
-      auto buffer_view = std::string_view(readBuffer.data(), readBuffer.size());
-      auto encountered_sha256 = SHA256ForString(buffer_view);
-
-      if (encountered_sha256 != expected_sha256)
-      {
-        throw IOException("Airport: SHA256 mismatch for URL: " + url);
-      }
-      return std::make_pair(http_code, readBuffer);
+      return std::make_pair(response->status, "");
     }
-    throw InternalException("Airport: Failed to initialize curl");
+
+    // Verify that the SHA256 matches the returned data, don't want a server to
+    // corrupt the data.
+    auto buffer_view = std::string_view(response->body.data(), response->body.size());
+    auto encountered_sha256 = SHA256ForString(buffer_view);
+
+    if (encountered_sha256 != expected_sha256)
+    {
+      throw IOException("Airport: SHA256 mismatch for URL: " + url);
+    }
+    return std::make_pair(response->status, response->body);
   }
 
   static std::pair<const string, const string> GetCachePath(FileSystem &fs, const string &input, const string &baseDir)
@@ -247,11 +234,10 @@ namespace duckdb
     return std::make_pair(subDir, fs.JoinPath(subDir, fileName));
   }
 
-  void
-  AirportAPI::PopulateCatalogSchemaCacheFromURLorContent(CURL *curl,
-                                                         const AirportSchemaCollection &collection,
-                                                         const string &catalog_name,
-                                                         const string &baseDir)
+  void AirportAPI::PopulateCatalogSchemaCacheFromURLorContent(ClientContext &context,
+                                                              const AirportSchemaCollection &collection,
+                                                              const string &catalog_name,
+                                                              const string &baseDir)
   {
     auto fs = FileSystem::CreateLocal();
 
@@ -300,9 +286,9 @@ namespace duckdb
     else if (collection.source.url.has_value())
     {
       // How do we know if the URLs haven't already been populated.
-      auto get_result = GetRequest(curl, collection.source.url.value(), collection.source.sha256);
+      auto get_result = GetRequest(context, collection.source.url.value(), collection.source.sha256);
 
-      if (get_result.first != 200)
+      if (get_result.first != HTTPStatusCode::OK_200)
       {
         throw IOException("Catalog " + catalog_name + " failed to retrieve schema collection contents from URL: " + collection.source.url.value());
       }
@@ -368,9 +354,9 @@ namespace duckdb
   }
 
   // Function to handle caching
-  static std::pair<long, std::string> getCachedRequestData(CURL *curl,
-                                                           const AirportSerializedContentsWithSHA256Hash &source,
-                                                           const string &baseDir)
+  static std::pair<HTTPStatusCode, std::string> getCachedRequestData(ClientContext &context,
+                                                                     const AirportSerializedContentsWithSHA256Hash &source,
+                                                                     const string &baseDir)
   {
     if (source.sha256.empty())
     {
@@ -381,11 +367,11 @@ namespace duckdb
       // retrieved from a server.
       if (source.serialized.has_value())
       {
-        return std::make_pair(200, source.serialized.value());
+        return std::make_pair(HTTPStatusCode::OK_200, source.serialized.value());
       }
       else if (source.url.has_value())
       {
-        return GetRequest(curl, source.url.value(), source.sha256);
+        return GetRequest(context, source.url.value(), source.sha256);
       }
       else
       {
@@ -399,7 +385,7 @@ namespace duckdb
     {
       if (SHA256ForString(source.serialized.value()) == source.sha256)
       {
-        return std::make_pair(200, source.serialized.value());
+        return std::make_pair(HTTPStatusCode::OK_200, source.serialized.value());
       }
       if (!source.url.has_value())
       {
@@ -423,16 +409,16 @@ namespace duckdb
         {
           throw IOException("SHA256 mismatch for URL: %s from cached data at %s, check for cache corruption", source.url.value(), paths.second.c_str());
         }
-        return std::make_pair(200, cachedData);
+        return std::make_pair(HTTPStatusCode::OK_200, cachedData);
       }
     }
 
     // I know this doesn't work for zero byte cached responses, its okay.
 
     // Data not in cache, fetch it
-    auto get_result = GetRequest(curl, source.url.value(), source.sha256);
+    auto get_result = GetRequest(context, source.url.value(), source.sha256);
 
-    if (get_result.first != 200)
+    if (get_result.first != HTTPStatusCode::OK_200)
     {
       return get_result;
     }
@@ -509,7 +495,7 @@ namespace duckdb
   }
 
   unique_ptr<AirportSchemaContents>
-  AirportAPI::GetSchemaItems(CURL *curl,
+  AirportAPI::GetSchemaItems(ClientContext &context,
                              const string &catalog,
                              const string &schema,
                              const AirportSerializedContentsWithSHA256Hash &source,
@@ -533,9 +519,9 @@ namespace duckdb
         !source.sha256.empty())
     {
       string url_contents;
-      auto get_response = getCachedRequestData(curl, source, cache_base_dir);
+      auto get_response = getCachedRequestData(context, source, cache_base_dir);
 
-      if (get_response.first != 200)
+      if (get_response.first != HTTPStatusCode::OK_200)
       {
         throw IOException("Failed to get Airport schema contents from URL: %s http response code %ld", source.url.value(), get_response.first);
       }

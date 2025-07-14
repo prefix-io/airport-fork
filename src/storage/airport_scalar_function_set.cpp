@@ -34,7 +34,6 @@
 #include "airport_take_flight.hpp"
 #include "storage/airport_catalog_api.hpp"
 #include "storage/airport_catalog.hpp"
-#include "storage/airport_curl_pool.hpp"
 #include "storage/airport_exchange.hpp"
 #include "storage/airport_schema_entry.hpp"
 #include "storage/airport_table_set.hpp"
@@ -117,16 +116,13 @@ namespace duckdb
     auto &airport_catalog = catalog.Cast<AirportCatalog>();
 
     // TODO: handle out-of-order columns using position property
-    auto curl = connection_pool_.acquire();
     auto contents = AirportAPI::GetSchemaItems(
-        curl,
+        context,
         catalog.GetDBPath(),
         schema.name,
         schema.serialized_source(),
         cache_directory_,
         airport_catalog.attach_parameters());
-
-    connection_pool_.release(curl);
 
     //    printf("AirportScalarFunctionSet loading entries\n");
     //    printf("Total functions: %lu\n", tables_and_functions.second.size());

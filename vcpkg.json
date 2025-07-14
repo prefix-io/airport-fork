@@ -9,13 +9,6 @@
       "name": "msgpack"
     },
     {
-      "name": "curl",
-      "features": [
-        "http2",
-        "openssl"
-      ]
-    },
-    {
       "name": "arrow",
       "default-features": false,
       "features": [

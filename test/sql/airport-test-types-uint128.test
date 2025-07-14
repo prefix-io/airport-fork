@@ -3,6 +3,8 @@
 # group: [airport]
 
 # Require statement will ensure this test is run with this extension loaded
+require httpfs
+
 require airport
 
 # Require test server URL

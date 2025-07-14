@@ -1,7 +1,6 @@
 #pragma once
 
 #include "airport_catalog_set.hpp"
-#include "airport_curl_pool.hpp"
 #include "airport_catalog_api.hpp"
 
 namespace duckdb
@@ -24,8 +23,6 @@ namespace duckdb
     void LoadEntries(ClientContext &context) override;
 
   private:
-    AirportCurlPool connection_pool;
-
     unique_ptr<AirportSchemaCollection> collection;
 
     bool populated_entire_set = false;

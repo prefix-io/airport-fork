@@ -33,7 +33,6 @@ set(EXTENSION_SOURCES
   src/storage/airport_table_set.cpp
   src/storage/airport_transaction_manager.cpp
   src/storage/airport_transaction.cpp
-  src/storage/airport_curl_pool.cpp
   src/storage/airport_exchange.cpp
   src/storage/airport_delete.cpp
   src/storage/airport_insert.cpp
@@ -62,7 +61,6 @@ target_link_libraries(${EXTENSION_NAME}
   Arrow::arrow_static
   ArrowFlight::arrow_flight_static
   gRPC::grpc++
-  CURL::libcurl
   msgpack-cxx
 )
 
@@ -72,7 +70,6 @@ target_link_libraries(${LOADABLE_EXTENSION_NAME}
   Arrow::arrow_static
   ArrowFlight::arrow_flight_static
   gRPC::grpc++
-  CURL::libcurl
   msgpack-cxx
   )
 

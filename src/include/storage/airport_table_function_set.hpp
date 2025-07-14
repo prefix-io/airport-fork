@@ -12,7 +12,7 @@ namespace duckdb
     void LoadEntries(ClientContext &context) override;
 
   public:
-    explicit AirportTableFunctionSet(AirportCurlPool &connection_pool, AirportSchemaEntry &schema, const string &cache_directory) : AirportCatalogSetBase(connection_pool, schema, cache_directory)
+    explicit AirportTableFunctionSet(AirportSchemaEntry &schema, const string &cache_directory) : AirportCatalogSetBase(schema, cache_directory)
     {
     }
     ~AirportTableFunctionSet() {}

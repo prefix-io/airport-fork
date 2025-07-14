@@ -10,13 +10,12 @@ namespace duckdb
   struct CreateTableInfo;
   class AirportResult;
   class AirportSchemaEntry;
-  class AirportCurlPool;
   struct AirportTableInfo;
 
   class AirportTableSet : public AirportCatalogSetBase
   {
   public:
-    explicit AirportTableSet(AirportCurlPool &connection_pool, AirportSchemaEntry &schema, const string &cache_directory) : AirportCatalogSetBase(connection_pool, schema, cache_directory)
+    explicit AirportTableSet(AirportSchemaEntry &schema, const string &cache_directory) : AirportCatalogSetBase(schema, cache_directory)
     {
     }
     ~AirportTableSet() {}

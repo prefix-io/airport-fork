@@ -16,7 +16,7 @@
 namespace duckdb
 {
   // Set the connection pool size.
-  AirportSchemaSet::AirportSchemaSet(Catalog &catalog) : AirportCatalogSet(catalog), connection_pool(32)
+  AirportSchemaSet::AirportSchemaSet(Catalog &catalog) : AirportCatalogSet(catalog)
   {
   }
 
@@ -94,9 +94,7 @@ namespace duckdb
       auto cache_path = DuckDBHomeDirectory(context);
 
       // Populate the on-disk schema cache from the catalog while contents_url.
-      auto curl = connection_pool.acquire();
-      AirportAPI::PopulateCatalogSchemaCacheFromURLorContent(curl, *collection, airport_catalog.internal_name(), cache_path);
-      connection_pool.release(curl);
+      AirportAPI::PopulateCatalogSchemaCacheFromURLorContent(context, *collection, airport_catalog.internal_name(), cache_path);
     }
     populated_entire_set = true;
 
@@ -117,7 +115,7 @@ namespace duckdb
 
       info.schema = schema.schema_name();
       info.internal = IsInternalTable(schema.catalog_name(), schema.schema_name());
-      auto schema_entry = make_uniq<AirportSchemaEntry>(catalog, info, connection_pool, cache_path, schema);
+      auto schema_entry = make_uniq<AirportSchemaEntry>(catalog, info, cache_path, schema);
 
       // Since these are DuckDB attributes, we need to copy them manually.
       schema_entry->comment = schema.comment();
@@ -205,7 +203,7 @@ namespace duckdb
 
     string cache_path = DuckDBHomeDirectory(context);
 
-    auto schema_entry = make_uniq<AirportSchemaEntry>(catalog, info, connection_pool, cache_path, real_entry);
+    auto schema_entry = make_uniq<AirportSchemaEntry>(catalog, info, cache_path, real_entry);
 
     return CreateEntry(std::move(schema_entry));
   }
