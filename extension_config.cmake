@@ -1,5 +1,14 @@
 # This file is included by DuckDB's build system. It specifies which extension to load
 
+
+duckdb_extension_load(httpfs
+    APPLY_PATCHES
+    LOAD_TESTS
+    GIT_URL https://github.com/duckdb/duckdb-httpfs
+    GIT_TAG 217ec8e04f6ed419c866a6d2496aa15aace4382f
+    INCLUDE_DIR extension/httpfs/include
+    )
+
 # Extension from this repo
 duckdb_extension_load(airport
     SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}

@@ -63,12 +63,8 @@ target_link_libraries(${EXTENSION_NAME}
   ArrowFlight::arrow_flight_static
   gRPC::grpc++
   CURL::libcurl
-  OpenSSL::SSL
-  OpenSSL::Crypto
   msgpack-cxx
 )
-
-#target_link_libraries(${LOADABLE_TARGET_NAME} PRIVATE Arrow::arrow_shared ArrowFlight::arrow_flight_shared CURL::libcurl OpenSSL::SSL OpenSSL::Crypto)
 
 build_loadable_extension(${TARGET_NAME} " " ${EXTENSION_SOURCES})
 
@@ -77,8 +73,6 @@ target_link_libraries(${LOADABLE_EXTENSION_NAME}
   ArrowFlight::arrow_flight_static
   gRPC::grpc++
   CURL::libcurl
-  OpenSSL::SSL
-  OpenSSL::Crypto
   msgpack-cxx
   )
 
