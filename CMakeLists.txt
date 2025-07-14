@@ -8,7 +8,6 @@ set(LOADABLE_EXTENSION_NAME ${TARGET_NAME}_loadable_extension)
 
 find_package(Arrow REQUIRED)
 find_package(ArrowFlight REQUIRED)
-find_package(CURL REQUIRED)
 find_package(msgpack-cxx CONFIG REQUIRED)
 
 project(${TARGET_NAME})
