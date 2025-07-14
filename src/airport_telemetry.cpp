@@ -1,12 +1,5 @@
 #include "airport_telemetry.hpp"
 #include <thread>
-#include <iostream>
-#include <cstdlib>
-#include <ctime>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <chrono>
-
 #include "duckdb.hpp"
 
 #include "duckdb/common/http_util.hpp"
@@ -36,7 +29,6 @@ namespace duckdb
     try
     {
       auto response = http_util.Request(post_request);
-      printf("Got response: %s\n", post_request.buffer_out.data());
     }
     catch (const std::exception &e)
     {
