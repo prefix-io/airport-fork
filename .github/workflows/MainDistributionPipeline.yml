@@ -25,7 +25,7 @@ jobs:
       exclude_archs: "wasm_mvp;wasm_eh;wasm_threads;"
       vcpkg_binary_sources: ${{ vars.VCPKG_BINARY_SOURCES }}
       test_config: >
-        {"test_env_vars":
+        {"test_env_variables":
           {
             "AIRPORT_TEST_SERVER": "grpc+tls://airport-ci.query.farm"
           }
