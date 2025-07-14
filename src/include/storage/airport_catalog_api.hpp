@@ -3,7 +3,6 @@
 #include "duckdb/common/types.hpp"
 
 #include <arrow/flight/client.h>
-#include <curl/curl.h>
 #include <msgpack.hpp>
 #include "airport_macros.hpp"
 #include <arrow/io/memory.h>
@@ -390,7 +389,7 @@ namespace duckdb
   {
   public:
     static vector<string> GetCatalogs(const string &catalog, AirportAttachParameters credentials);
-    static unique_ptr<AirportSchemaContents> GetSchemaItems(CURL *curl,
+    static unique_ptr<AirportSchemaContents> GetSchemaItems(ClientContext &context,
                                                             const string &catalog,
                                                             const string &schema,
                                                             const AirportSerializedContentsWithSHA256Hash &source,
@@ -399,7 +398,7 @@ namespace duckdb
     static unique_ptr<AirportSchemaCollection> GetSchemas(const string &catalog,
                                                           const std::shared_ptr<AirportAttachParameters> &credentials);
 
-    static void PopulateCatalogSchemaCacheFromURLorContent(CURL *curl,
+    static void PopulateCatalogSchemaCacheFromURLorContent(ClientContext &context,
                                                            const AirportSchemaCollection &collection,
                                                            const string &catalog_name,
                                                            const string &baseDir);

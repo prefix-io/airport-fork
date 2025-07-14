@@ -13,7 +13,6 @@
 #include "airport_optimizer.hpp"
 #include "airport_scalar_function.hpp"
 #include "airport_json_common.hpp"
-#include <curl/curl.h>
 #include "airport_telemetry.hpp"
 #include "duckdb/main/extension_helper.hpp"
 
@@ -235,8 +234,6 @@ namespace duckdb
 
     static void LoadInternal(ExtensionLoader &loader)
     {
-        curl_global_init(CURL_GLOBAL_DEFAULT);
-
         ExtensionHelper::AutoLoadExtension(loader.GetDatabaseInstance(), "httpfs");
 
         AirportAddListFlightsFunction(loader);

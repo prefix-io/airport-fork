@@ -2,6 +2,8 @@
 # description: test airport extension
 # group: [airport]
 
+require httpfs
+
 require airport
 
 # Require test server URL

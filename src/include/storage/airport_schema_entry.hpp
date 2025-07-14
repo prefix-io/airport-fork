@@ -2,7 +2,6 @@
 
 #include "duckdb/catalog/catalog_entry/schema_catalog_entry.hpp"
 #include "storage/airport_table_set.hpp"
-#include "storage/airport_curl_pool.hpp"
 #include "storage/airport_scalar_function_set.hpp"
 #include "storage/airport_table_function_set.hpp"
 
@@ -15,7 +14,6 @@ namespace duckdb
   public:
     AirportSchemaEntry(Catalog &catalog,
                        CreateSchemaInfo &info,
-                       AirportCurlPool &connection_pool,
                        const string &cache_directory,
                        const AirportAPISchema &schema_data);
     ~AirportSchemaEntry() override;

@@ -34,7 +34,6 @@
 #include "airport_take_flight.hpp"
 #include "storage/airport_catalog_api.hpp"
 #include "storage/airport_catalog.hpp"
-#include "storage/airport_curl_pool.hpp"
 #include "storage/airport_exchange.hpp"
 #include "storage/airport_schema_entry.hpp"
 #include "storage/airport_table_set.hpp"
@@ -680,16 +679,13 @@ namespace duckdb
 
     auto &airport_catalog = catalog.Cast<AirportCatalog>();
 
-    auto curl = connection_pool_.acquire();
     auto contents = AirportAPI::GetSchemaItems(
-        curl,
+        context,
         catalog.GetDBPath(),
         schema.name,
         schema.serialized_source(),
         cache_directory_,
         airport_catalog.attach_parameters());
-
-    connection_pool_.release(curl);
 
     // There can be functions with the same name.
     std::unordered_map<AirportFunctionCatalogSchemaNameKey, std::vector<AirportAPITableFunction>> functions_by_name;
