@@ -1,7 +1,7 @@
 PROJ_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
 # Core extensions that we need for testing
-#CORE_EXTENSIONS='httpfs'
+CORE_EXTENSIONS='airport'
 
 # Configuration of extension
 EXT_NAME=airport
